@@ -11,6 +11,9 @@ from utils.history_manager import HistoryBuffer
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
 import openai
+from openai import Client, OpenAIError
+
+client = Client()
 import os
 from dotenv import load_dotenv
 
@@ -93,15 +96,29 @@ class Agent:
         return _wrapper
 
     @staticmethod
-    def generate_statement(prompt_text: str) -> str:
-        response = openai.ChatCompletion.create(
-            model="gpt-4-1106-preview",  # gpt-4-turbo
-            messages=[
-                {"role": "system", "content": "あなたは人狼知能のプレイヤーです。"},
-                {"role": "user", "content": prompt_text},
-            ],
-        )
-        return response["choices"][0]["message"]["content"]
+    def generate_statement(
+        prompt_text: str,
+        model: str = "gpt-4o-mini",
+        temperature: float = 0.7,
+        max_tokens: int = 64,
+    ) -> str:
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "あなたは人狼知能コンテストのプレイヤーです。",
+                    },
+                    {"role": "user", "content": prompt_text},
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content.strip()
+        except OpenAIError as e:
+            print("OpenAIError:", e)
+            return "…"
 
     def set_packet(self, packet: Packet) -> None:
         """パケット情報をセットする."""
