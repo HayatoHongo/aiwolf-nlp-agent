@@ -186,14 +186,17 @@ class Agent:
         return self.generate_statement(prompt)
 
     def talk(self) -> str:
+        alive = ", ".join(self.get_alive_agents())
         context = self.history.get_context()
+
         prompt = PROMPT_STATEMENT.format(
-            role_ja=self.role_ja,  # 例: Role.VILLAGER → "村人"
-            name=self.name,
             day=self.game_day,
-            context=context,
+            role_ja=self.role_ja,
+            alive_list=alive,
+            context=context or "（まだ会話はありません）",
         )
-        return self.generate_statement(prompt)
+
+        return Agent.generate_statement(prompt)
 
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
