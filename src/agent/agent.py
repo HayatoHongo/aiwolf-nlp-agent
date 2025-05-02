@@ -46,6 +46,7 @@ class Agent:
         self.whisper_history: list[Talk] = []
         self.role = role
         self.history = HistoryBuffer()
+        self.game_day: int = 0
 
         self.comments: list[str] = []
         with Path.open(
@@ -152,6 +153,9 @@ class Agent:
 
     def update_game_info(self, packet: Packet) -> None:
         """ゲーム進行情報を更新し、トーク履歴も管理する."""
+        # ゲームサーバから送られてきた「今日は何日目か」を保持
+        if packet.info and packet.info.day is not None:
+            self.game_day = packet.info.day
         # 新しいトークが届いたら履歴に追加
         if hasattr(packet, "talk") and packet.talk:
             self.history.add(packet.talk.text)
