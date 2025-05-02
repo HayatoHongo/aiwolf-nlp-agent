@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Status, Talk
+from config.prompt_templates import PROMPT_STATEMENT, PROMPT_WHISPER
 from utils.history_manager import HistoryBuffer
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
@@ -53,6 +54,18 @@ class Agent:
         ) as f:
             self.comments = f.read().splitlines()
 
+    @property
+    def role_ja(self) -> str:
+        m = {
+            Role.VILLAGER: "村人",
+            Role.SEER: "占い師",
+            Role.WEREWOLF: "人狼",
+            Role.POSSESSED: "狂人",
+            Role.BODYGUARD: "狩人",
+            Role.MEDIUM: "霊媒師",
+        }
+        return m[self.role]
+
     @staticmethod
     def timeout(func: Callable) -> Callable:
         """アクションタイムアウトを設定するデコレータ."""
@@ -98,13 +111,14 @@ class Agent:
     @staticmethod
     def generate_statement(
         prompt_text: str,
-        model: str = "gpt-4o-mini",
+        model: str | None = None,  # 型を少し広げる
         temperature: float = 0.7,
         max_tokens: int = 64,
     ) -> str:
+        m = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
         try:
             response = client.chat.completions.create(
-                model=model,
+                model=m,
                 messages=[
                     {
                         "role": "system",
@@ -161,13 +175,20 @@ class Agent:
         """昼開始リクエストに対する処理を行う."""
 
     def whisper(self) -> str:
-        """囁きリクエストに対する応答を返す."""
-        return random.choice(self.comments)  # noqa: S311
+        context = self.history.get_context()
+        prompt = PROMPT_WHISPER.format(
+            name=self.name, day=self.game_day, context=context
+        )
+        return self.generate_statement(prompt)
 
     def talk(self) -> str:
-        """トークリクエストに対する応答を返す。履歴要約を含む。"""
-        context = self.history.get_context()  # ← 要約付き履歴
-        prompt = PROMPT_TMPL.format(context=context, name=self.name, day=self.game_day)
+        context = self.history.get_context()
+        prompt = PROMPT_STATEMENT.format(
+            role_ja=self.role_ja,  # 例: Role.VILLAGER → "村人"
+            name=self.name,
+            day=self.game_day,
+            context=context,
+        )
         return self.generate_statement(prompt)
 
     def daily_finish(self) -> None:
