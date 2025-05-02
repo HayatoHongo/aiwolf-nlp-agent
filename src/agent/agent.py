@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Status, Talk
-
+from utils.history_manager import HistoryBuffer
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
 import openai
@@ -41,6 +41,7 @@ class Agent:
         self.talk_history: list[Talk] = []
         self.whisper_history: list[Talk] = []
         self.role = role
+        self.history = HistoryBuffer()
 
         self.comments: list[str] = []
         with Path.open(
@@ -118,6 +119,14 @@ class Agent:
             self.whisper_history: list[Talk] = []
         self.agent_logger.logger.debug(packet)
 
+    def update_game_info(self, packet: Packet) -> None:
+        """ゲーム進行情報を更新し、トーク履歴も管理する."""
+        # 新しいトークが届いたら履歴に追加
+        if hasattr(packet, "talk") and packet.talk:
+            self.history.add(packet.talk.text)
+        # 既存の情報も更新
+        self.set_packet(packet)
+
     def get_alive_agents(self) -> list[str]:
         """生存しているエージェントのリストを取得する."""
         if not self.info:
@@ -139,15 +148,10 @@ class Agent:
         return random.choice(self.comments)  # noqa: S311
 
     def talk(self) -> str:
-        """トークリクエストに対する応答を返す."""
-        return random.choice(self.comments)  # noqa: S311
-
-    def talk(self):
-        """トークリクエストに対する応答を返す。"""
-        prompt = f"{self.name}です。今日は{self.game_day}日目です。あなたは{self.role}です。次に話すべき内容を1文で答えてください。"
-        # OpenAIの関数を呼び出す
-        statement = self.generate_statement(prompt)
-        return statement
+        """トークリクエストに対する応答を返す。履歴要約を含む。"""
+        context = self.history.get_context()  # ← 要約付き履歴
+        prompt = PROMPT_TMPL.format(context=context, name=self.name, day=self.game_day)
+        return self.generate_statement(prompt)
 
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
