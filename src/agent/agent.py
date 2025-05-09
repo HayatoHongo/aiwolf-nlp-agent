@@ -184,6 +184,7 @@ class Agent:
     def daily_initialize(self) -> None:
         """昼開始リクエストに対する処理を行う."""
 
+    # 五人人狼では不要
     def whisper(self) -> str:
         context = self.history.get_context()
         prompt = PROMPT_WHISPER.format(
@@ -192,6 +193,12 @@ class Agent:
         return self.generate_statement(prompt)
 
     def talk(self) -> str:
+        # 占い師で、その日の占い結果がある場合
+        if self.role == Role.SEER and self.info and self.info.divine_result:
+            judge = self.info.divine_result
+            # 例: "2日目、PlayerAを占った結果はHUMANでした。"
+            return f"{judge.day}日目、{judge.target}を占った結果は{judge.result.value}でした。"
+        # それ以外は通常の発言
         alive = ", ".join(self.get_alive_agents())
         context = self.history.get_context()
         prompt = PROMPT_STATEMENT.format(
