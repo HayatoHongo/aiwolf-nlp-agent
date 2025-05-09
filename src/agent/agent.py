@@ -7,7 +7,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Status, Talk
-from config.prompt_templates import PROMPT_STATEMENT, PROMPT_WHISPER, PROMPT_VOTE, PROMPT_VOTE_WOLF
+from config.prompt_templates import (
+    PROMPT_STATEMENT,
+    PROMPT_WHISPER,
+    PROMPT_VOTE,
+    PROMPT_VOTE_WOLF,
+    PROMPT_DIVINE,
+)
 from utils.history_manager import HistoryBuffer
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
@@ -201,9 +207,25 @@ class Agent:
         """昼終了リクエストに対する処理を行う."""
 
     def divine(self) -> str:
-        """占いリクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
+        """占いリクエストに対する応答を返す。LLMで最も怪しい生存者を選ぶ。"""
+        alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
+        if not alive_agents:
+            return self.agent_name  # フォールバック
 
+        context = self.history.get_context() or "（まだ会話はありません）"
+        alive = ", ".join(alive_agents)
+        prompt = PROMPT_DIVINE.format(
+            context=context,
+            alive_list=alive,
+        )
+        # LLMで候補取得
+        candidate = self.generate_statement(prompt).strip()
+        # 生存者リストに含まれているかチェック
+        if candidate not in alive_agents:
+            candidate = random.choice(alive_agents)
+        return candidate
+
+    # 五人人狼では不要
     def guard(self) -> str:
         """護衛リクエストに対する応答を返す."""
         return random.choice(self.get_alive_agents())  # noqa: S311
@@ -220,7 +242,7 @@ class Agent:
         if self.role in [Role.WEREWOLF, Role.POSSESSED]:
             prompt_template = PROMPT_VOTE_WOLF  # 人狼陣営用プロンプト
         else:
-            prompt_template = PROMPT_VOTE       # 市民陣営用プロンプト
+            prompt_template = PROMPT_VOTE  # 市民陣営用プロンプト
 
         prompt = prompt_template.format(
             day=self.game_day,
