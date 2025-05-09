@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Status, Talk
-from config.prompt_templates import PROMPT_STATEMENT, PROMPT_WHISPER, PROMPT_VOTE
+from config.prompt_templates import PROMPT_STATEMENT, PROMPT_WHISPER, PROMPT_VOTE, PROMPT_VOTE_WOLF
 from utils.history_manager import HistoryBuffer
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
@@ -216,8 +216,13 @@ class Agent:
         # 2) 会話履歴コンテキストを取得（空なら案内文を）
         context = self.history.get_context() or "（まだ会話はありません）"
 
-        # 3) プロンプト生成
-        prompt = PROMPT_VOTE.format(
+        # 3) 陣営ごとにプロンプトを切り替え
+        if self.role in [Role.WEREWOLF, Role.POSSESSED]:
+            prompt_template = PROMPT_VOTE_WOLF  # 人狼陣営用プロンプト
+        else:
+            prompt_template = PROMPT_VOTE       # 市民陣営用プロンプト
+
+        prompt = prompt_template.format(
             day=self.game_day,
             role_ja=self.role_ja,
             name=self.agent_name,
