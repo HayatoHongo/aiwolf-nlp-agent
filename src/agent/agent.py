@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Status, Talk
-from config.prompt_templates import PROMPT_STATEMENT, PROMPT_WHISPER
+from config.prompt_templates import PROMPT_STATEMENT, PROMPT_WHISPER, PROMPT_VOTE
 from utils.history_manager import HistoryBuffer
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
@@ -211,7 +211,30 @@ class Agent:
 
     def vote(self) -> str:
         """投票リクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
+        # 1) 生存者リストを文字列化
+        alive = ", ".join(self.get_alive_agents())
+
+        # 2) 会話履歴コンテキストを取得（空なら案内文を）
+        context = self.history.get_context() or "（まだ会話はありません）"
+
+        # 3) プロンプト生成
+        prompt = PROMPT_VOTE.format(
+            day=self.game_day,
+            role_ja=self.role_ja,
+            name=self.agent_name,
+            alive_list=alive,
+            context=context,
+        )
+
+        # 4) LLM 呼び出しで名前を得る
+        candidate = self.generate_statement(prompt).strip()
+
+        # 5) 誤答防止: 生存者リストに含まれているかチェック
+        if candidate not in self.get_alive_agents():
+            # 最も近い名前を選び直す（単純にランダムフォールバック）
+            candidate = random.choice(self.get_alive_agents())
+
+        return candidate
 
     def attack(self) -> str:
         """襲撃リクエストに対する応答を返す."""
