@@ -188,7 +188,6 @@ class Agent:
     def talk(self) -> str:
         alive = ", ".join(self.get_alive_agents())
         context = self.history.get_context()
-
         prompt = PROMPT_STATEMENT.format(
             day=self.game_day,
             role_ja=self.role_ja,
