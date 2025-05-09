@@ -213,23 +213,54 @@ class Agent:
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
 
+    PROMPT_DIVINE = """\
+あなたは人狼知能コンテストの占い師です。
+以下はこれまでの会話履歴です。
+
+{context}
+
+生存者: {alive_list}
+これまで占った人: {already_divined}
+
+この中から「まだ占っていない」最も人狼だと疑わしい人物の名前を1人だけ日本語で出力してください。理由や説明は不要です。
+"""
+
     def divine(self) -> str:
-        """占いリクエストに対する応答を返す。LLMで最も怪しい生存者を選ぶ。"""
+        """占いリクエストに対する応答を返す。LLMで最も怪しい未占い生存者を選ぶ."""
         alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
         if not alive_agents:
             return self.agent_name  # フォールバック
 
+        # これまで占った人リストを作成
+        already_divined = []
+        if hasattr(self, "info") and self.info:
+            # 1日1回しか占えない前提で、過去のdivine_resultを蓄積している場合
+            if hasattr(self, "divined_targets"):
+                already_divined = self.divined_targets
+            # もしくは、過去のJudgeをどこかで保持している場合
+            elif hasattr(self.info, "divine_results") and self.info.divine_results:
+                already_divined = [j.target for j in self.info.divine_results]
+            # もしくは、単発のdivine_resultしかない場合
+            elif self.info.divine_result:
+                already_divined = [self.info.divine_result.target]
+
+        # プロンプト生成
         context = self.history.get_context() or "（まだ会話はありません）"
         alive = ", ".join(alive_agents)
+        already = ", ".join(already_divined) if already_divined else "なし"
         prompt = PROMPT_DIVINE.format(
             context=context,
             alive_list=alive,
+            already_divined=already,
         )
         # LLMで候補取得
         candidate = self.generate_statement(prompt).strip()
-        # 生存者リストに含まれているかチェック
-        if candidate not in alive_agents:
-            candidate = random.choice(alive_agents)
+        # 生存者かつ未占いかチェック
+        candidates = [a for a in alive_agents if a not in already_divined]
+        if candidate not in candidates:
+            candidate = (
+                random.choice(candidates) if candidates else random.choice(alive_agents)
+            )
         return candidate
 
     # 五人人狼では不要
