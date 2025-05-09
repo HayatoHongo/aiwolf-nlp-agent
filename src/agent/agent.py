@@ -13,6 +13,7 @@ from config.prompt_templates import (
     PROMPT_VOTE,
     PROMPT_VOTE_WOLF,
     PROMPT_DIVINE,
+    PROMPT_ATTACK,
 )
 from utils.history_manager import HistoryBuffer
 from utils.agent_logger import AgentLogger
@@ -213,18 +214,6 @@ class Agent:
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
 
-    PROMPT_DIVINE = """\
-あなたは人狼知能コンテストの占い師です。
-以下はこれまでの会話履歴です。
-
-{context}
-
-生存者: {alive_list}
-これまで占った人: {already_divined}
-
-この中から「まだ占っていない」最も人狼だと疑わしい人物の名前を1人だけ日本語で出力してください。理由や説明は不要です。
-"""
-
     def divine(self) -> str:
         """占いリクエストに対する応答を返す。LLMで最も怪しい未占い生存者を選ぶ."""
         alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
@@ -301,8 +290,31 @@ class Agent:
         return candidate
 
     def attack(self) -> str:
-        """襲撃リクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
+        """襲撃リクエストに対する応答を返す。LLMで最適な襲撃対象を選ぶ。"""
+        alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
+        # 人狼仲間リスト（自分以外の人狼）
+        wolf_list = [
+            name
+            for name, role in self.info.role_map.items()
+            if role == Role.WEREWOLF and name != self.agent_name
+        ]
+        # 襲撃候補は人狼仲間以外
+        candidates = [a for a in alive_agents if a not in wolf_list]
+        if not candidates:
+            return random.choice(alive_agents)  # フォールバック
+
+        context = self.history.get_context() or "（まだ会話はありません）"
+        alive = ", ".join(alive_agents)
+        wolves = ", ".join(wolf_list) if wolf_list else "なし"
+        prompt = PROMPT_ATTACK.format(
+            context=context,
+            alive_list=alive,
+            wolf_list=wolves,
+        )
+        candidate = self.generate_statement(prompt).strip()
+        if candidate not in candidates:
+            candidate = random.choice(candidates)
+        return candidate
 
     def finish(self) -> None:
         """ゲーム終了リクエストに対する処理を行う."""
