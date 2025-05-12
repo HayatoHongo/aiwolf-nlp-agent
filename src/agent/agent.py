@@ -7,9 +7,26 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Status, Talk
-
+from config.prompt_templates import (
+    PROMPT_STATEMENT,
+    PROMPT_WHISPER,
+    PROMPT_VOTE,
+    PROMPT_VOTE_WOLF,
+    PROMPT_DIVINE,
+    PROMPT_ATTACK,
+)
+from utils.history_manager import HistoryBuffer
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
+import openai
+from openai import Client, OpenAIError
+
+client = Client()
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -35,6 +52,8 @@ class Agent:
         self.talk_history: list[Talk] = []
         self.whisper_history: list[Talk] = []
         self.role = role
+        self.history = HistoryBuffer()
+        self.game_day: int = 0
 
         self.comments: list[str] = []
         with Path.open(
@@ -42,6 +61,18 @@ class Agent:
             encoding="utf-8",
         ) as f:
             self.comments = f.read().splitlines()
+
+    @property
+    def role_ja(self) -> str:
+        m = {
+            Role.VILLAGER: "村人",
+            Role.SEER: "占い師",
+            Role.WEREWOLF: "人狼",
+            Role.POSSESSED: "狂人",
+            Role.BODYGUARD: "狩人",
+            Role.MEDIUM: "霊媒師",
+        }
+        return m[self.role]
 
     @staticmethod
     def timeout(func: Callable) -> Callable:
@@ -85,6 +116,32 @@ class Agent:
 
         return _wrapper
 
+    @staticmethod
+    def generate_statement(
+        prompt_text: str,
+        model: str | None = None,  # 型を少し広げる
+        temperature: float = 0.7,
+        max_tokens: int = 64,
+    ) -> str:
+        m = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        try:
+            response = client.chat.completions.create(
+                model=m,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "あなたは人狼知能コンテストのプレイヤーです。",
+                    },
+                    {"role": "user", "content": prompt_text},
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content.strip()
+        except OpenAIError as e:
+            print("OpenAIError:", e)
+            return "…"
+
     def set_packet(self, packet: Packet) -> None:
         """パケット情報をセットする."""
         self.request = packet.request
@@ -100,6 +157,17 @@ class Agent:
             self.talk_history: list[Talk] = []
             self.whisper_history: list[Talk] = []
         self.agent_logger.logger.debug(packet)
+
+    def update_game_info(self, packet: Packet) -> None:
+        """ゲーム進行情報を更新し、トーク履歴も管理する."""
+        # ゲームサーバから送られてきた「今日は何日目か」を保持
+        if packet.info and packet.info.day is not None:
+            self.game_day = packet.info.day
+        # 新しいトークが届いたら履歴に追加
+        if hasattr(packet, "talk") and packet.talk:
+            self.history.add(packet.talk.text)
+        # 既存の情報も更新
+        self.set_packet(packet)
 
     def get_alive_agents(self) -> list[str]:
         """生存しているエージェントのリストを取得する."""
@@ -117,32 +185,136 @@ class Agent:
     def daily_initialize(self) -> None:
         """昼開始リクエストに対する処理を行う."""
 
+    # 五人人狼では不要
     def whisper(self) -> str:
-        """囁きリクエストに対する応答を返す."""
-        return random.choice(self.comments)  # noqa: S311
+        context = self.history.get_context()
+        prompt = PROMPT_WHISPER.format(
+            name=self.name, day=self.game_day, context=context
+        )
+        return self.generate_statement(prompt)
 
     def talk(self) -> str:
-        """トークリクエストに対する応答を返す."""
-        return random.choice(self.comments)  # noqa: S311
+        # 占い師で、その日の占い結果がある場合
+        if self.role == Role.SEER and self.info and self.info.divine_result:
+            judge = self.info.divine_result
+            # 例: "2日目、PlayerAを占った結果はHUMANでした。"
+            return f"{judge.day}日目、{judge.target}を占った結果は{judge.result.value}でした。"
+        # それ以外は通常の発言
+        alive = ", ".join(self.get_alive_agents())
+        context = self.history.get_context()
+        prompt = PROMPT_STATEMENT.format(
+            day=self.game_day,
+            role_ja=self.role_ja,
+            alive_list=alive,
+            context=context or "（まだ会話はありません）",
+        )
+
+        return Agent.generate_statement(prompt)
 
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
 
     def divine(self) -> str:
-        """占いリクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
+        """占いリクエストに対する応答を返す。LLMで最も怪しい未占い生存者を選ぶ."""
+        alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
+        if not alive_agents:
+            return self.agent_name  # フォールバック
 
+        # これまで占った人リストを作成
+        already_divined = []
+        if hasattr(self, "info") and self.info:
+            # 1日1回しか占えない前提で、過去のdivine_resultを蓄積している場合
+            if hasattr(self, "divined_targets"):
+                already_divined = self.divined_targets
+            # もしくは、過去のJudgeをどこかで保持している場合
+            elif hasattr(self.info, "divine_results") and self.info.divine_results:
+                already_divined = [j.target for j in self.info.divine_results]
+            # もしくは、単発のdivine_resultしかない場合
+            elif self.info.divine_result:
+                already_divined = [self.info.divine_result.target]
+
+        # プロンプト生成
+        context = self.history.get_context() or "（まだ会話はありません）"
+        alive = ", ".join(alive_agents)
+        already = ", ".join(already_divined) if already_divined else "なし"
+        prompt = PROMPT_DIVINE.format(
+            context=context,
+            alive_list=alive,
+            already_divined=already,
+        )
+        # LLMで候補取得
+        candidate = self.generate_statement(prompt).strip()
+        # 生存者かつ未占いかチェック
+        candidates = [a for a in alive_agents if a not in already_divined]
+        if candidate not in candidates:
+            candidate = (
+                random.choice(candidates) if candidates else random.choice(alive_agents)
+            )
+        return candidate
+
+    # 五人人狼では不要
     def guard(self) -> str:
         """護衛リクエストに対する応答を返す."""
         return random.choice(self.get_alive_agents())  # noqa: S311
 
     def vote(self) -> str:
         """投票リクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
+        # 1) 生存者リストを文字列化
+        alive = ", ".join(self.get_alive_agents())
+
+        # 2) 会話履歴コンテキストを取得（空なら案内文を）
+        context = self.history.get_context() or "（まだ会話はありません）"
+
+        # 3) 陣営ごとにプロンプトを切り替え
+        if self.role in [Role.WEREWOLF, Role.POSSESSED]:
+            prompt_template = PROMPT_VOTE_WOLF  # 人狼陣営用プロンプト
+        else:
+            prompt_template = PROMPT_VOTE  # 市民陣営用プロンプト
+
+        prompt = prompt_template.format(
+            day=self.game_day,
+            role_ja=self.role_ja,
+            name=self.agent_name,
+            alive_list=alive,
+            context=context,
+        )
+
+        # 4) LLM 呼び出しで名前を得る
+        candidate = self.generate_statement(prompt).strip()
+
+        # 5) 誤答防止: 生存者リストに含まれているかチェック
+        if candidate not in self.get_alive_agents():
+            # 最も近い名前を選び直す（単純にランダムフォールバック）
+            candidate = random.choice(self.get_alive_agents())
+
+        return candidate
 
     def attack(self) -> str:
-        """襲撃リクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
+        """襲撃リクエストに対する応答を返す。LLMで最適な襲撃対象を選ぶ。"""
+        alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
+        # 人狼仲間リスト（自分以外の人狼）
+        wolf_list = [
+            name
+            for name, role in self.info.role_map.items()
+            if role == Role.WEREWOLF and name != self.agent_name
+        ]
+        # 襲撃候補は人狼仲間以外
+        candidates = [a for a in alive_agents if a not in wolf_list]
+        if not candidates:
+            return random.choice(alive_agents)  # フォールバック
+
+        context = self.history.get_context() or "（まだ会話はありません）"
+        alive = ", ".join(alive_agents)
+        wolves = ", ".join(wolf_list) if wolf_list else "なし"
+        prompt = PROMPT_ATTACK.format(
+            context=context,
+            alive_list=alive,
+            wolf_list=wolves,
+        )
+        candidate = self.generate_statement(prompt).strip()
+        if candidate not in candidates:
+            candidate = random.choice(candidates)
+        return candidate
 
     def finish(self) -> None:
         """ゲーム終了リクエストに対する処理を行う."""

@@ -70,7 +70,7 @@ def handle_game_session(
             agent = init_agent_from_packet(config, name, packet)
         if not agent:
             raise ValueError(agent, "エージェントが初期化されていません")
-        agent.set_packet(packet)
+        agent.update_game_info(packet)  # ✅ game_day や talk 履歴も更新される
         req = agent.action()
         agent.agent_logger.packet(agent.request, req)
         if req:

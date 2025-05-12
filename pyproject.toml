@@ -25,3 +25,9 @@ keywords = ["aiwolf"]
 
 [project.urls]
 Homepage = "https://aiwolfdial.github.io/aiwolf-nlp/"
+
+[project.optional-dependencies]
+llm = ["openai>=1.14", "tiktoken>=0.6"]
+
+[tool.aiwolf]
+SUMMARY_TOKEN_LIMIT = 5000   # 好きな値に
