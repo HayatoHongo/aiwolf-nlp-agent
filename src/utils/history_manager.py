@@ -2,12 +2,20 @@ from collections import deque
 from typing import Deque, List
 import tiktoken
 import openai
+import os
+from dotenv import load_dotenv
 from pathlib import Path
+
 
 # --------------- 設定 -----------------
 ENC = tiktoken.encoding_for_model("gpt-4o-mini")
 TOKEN_LIMIT = 5000
-client = openai.Client()  # ← openai.api_key は .env で読み込まれていればOK
+# .env をロードして環境変数からキーを取得
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# API クライアント初期化時にも明示的に api_key を渡す
+client = openai.Client(api_key=openai.api_key)
 # --------------------------------------
 
 
