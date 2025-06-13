@@ -13,13 +13,14 @@ from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
 import openai
 from openai import Client, OpenAIError
-
-client = Client()
 import os
 from dotenv import load_dotenv
 
+
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
+# OpenAIのAPIクライアントを初期化
+client = Client()
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -37,7 +38,11 @@ class Agent:
     ) -> None:
         """エージェントの初期化を行う."""
         self.config = config
-        self.agent_name = name
+        # name 引数は「プロセス名（ログ用）」として保持しつつ…
+        self.process_name = name
+        # ゲーム内キャラクター名は info.agent に入ってくるので、初期は空文字
+        self.character_name: str = ""
+
         self.agent_logger = AgentLogger(config, name, game_id)
         self.request: Request | None = None
         self.info: Info | None = None
@@ -131,12 +136,17 @@ class Agent:
                 max_tokens=max_tokens,
             )
             return response.choices[0].message.content.strip()
+        
         except OpenAIError as e:
             print("OpenAIError:", e)
             return "…"
 
     def set_packet(self, packet: Packet) -> None:
         """パケット情報をセットする."""
+        # ゲーム内キャラクター名を更新
+        if packet.info and packet.info.agent:
+            self.character_name = packet.info.agent
+
         self.request = packet.request
         if packet.info:
             self.info = packet.info
@@ -144,8 +154,10 @@ class Agent:
             self.setting = packet.setting
         if packet.talk_history:
             self.talk_history.extend(packet.talk_history)
+            for t in packet.talk_history: self.history.add(t.text)
         if packet.whisper_history:
             self.whisper_history.extend(packet.whisper_history)
+            for t in packet.whisper_history_history: self.history.add(t.text)
         if self.request == Request.INITIALIZE:
             self.talk_history: list[Talk] = []
             self.whisper_history: list[Talk] = []
@@ -170,7 +182,7 @@ class Agent:
 
     def name(self) -> str:
         """名前リクエストに対する応答を返す."""
-        return self.agent_name
+        return self.process_name
 
     def initialize(self) -> None:
         """ゲーム開始リクエストに対する初期化処理を行う."""
@@ -179,19 +191,38 @@ class Agent:
         """昼開始リクエストに対する処理を行う."""
 
     def whisper(self) -> str:
+        
         context = self.history.get_context()
+
         prompt = PROMPT_WHISPER.format(
-            name=self.name, day=self.game_day, context=context
+            role_ja=self.role_ja,  # 例: Role.VILLAGER → "村人"
+            name=self.character_name,
+            day=self.game_day,
+            context=context,
         )
+        # ここでプロンプトをログ出力
+        self.agent_logger.logger.debug(
+            "WHISPER prompt (Agent=%s):\n%s",
+            self.character_name,
+            prompt,
+        )
+            
         return self.generate_statement(prompt)
 
     def talk(self) -> str:
         context = self.history.get_context()
         prompt = PROMPT_STATEMENT.format(
             role_ja=self.role_ja,  # 例: Role.VILLAGER → "村人"
-            name=self.name,
+            name=self.character_name,
             day=self.game_day,
             context=context,
+        )
+
+        # ここでプロンプトをログ出力
+        self.agent_logger.logger.debug(
+            "TALK prompt (Agent=%s):\n%s",
+            self.character_name,
+            prompt,
         )
         return self.generate_statement(prompt)
 
