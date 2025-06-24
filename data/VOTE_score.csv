@@ -1,0 +1,10 @@
+,,own→talker,,,,own→target,,,
+target,own_role,WEREWOLF,POSSESSED,SEER,VILLAGER,WEREWOLF,POSSESSED,SEER,VILLAGER
+own,WEREWOLF,-100,0,3,3,,,,
+own,POSSESSED,0,-100,3,3,,,,
+own,SEER,3,3,-100,0,,,,
+own,VILLAGER,3,3,0,0,,,,
+else,WEREWOLF,-100,0,0,0,-100,0,0,0
+else,POSSESSED,1,-100,0,0,3,-100,0,0
+else,SEER,1,0,-100,0,3,0,-100,0
+else,VILLAGER,1,0,0,0,3,0,0,0
