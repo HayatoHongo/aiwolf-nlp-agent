@@ -18,6 +18,28 @@ if TYPE_CHECKING:
 class Agent:
     """エージェントの基底クラス."""
 
+    index: str  # 自身
+    """Myself."""
+    vote_candidate: str  # 投票候補
+    """Candidate for voting."""
+    gameInfo: GameInfo  # ゲーム情報
+    """Information about current game."""
+    gameSetting: GameSetting  # ゲーム設定
+    """Settings of current game."""
+    comingout_map: DefaultDict[str, Role]  # CO辞書
+    """Mapping between an agent and the role it claims that it is."""
+    divination_reports: list[DivineResult]  # 占い結果
+    """Time series of divination reports."""
+    talk_list_head: int  # talkのインデックス
+    """Index of the talk to be analysed next."""
+    will_vote_reports: DefaultDict[str, str]  # 投票宣言
+    talkHistory: list[TalkHist]  # talk履歴
+    protocolHistory: list[ProtocolMean]  # protocol履歴
+    talk_list_all: list[TalkHist]  # 全talkリスト
+    protocol_list_all: list[ProtocolMean]  # 全protocolリスト
+    talk_turn: int  # talkのターン
+    role_predictor: RolePredictor  # role_predictor
+
     def __init__(
         self,
         config: dict,

@@ -1,0 +1,8 @@
+class Topic:
+    CO = "CO"
+    DIVINED = "DIVINED"
+    SUSPECT = "SUSPECT"
+    VOTE = "VOTE"
+    DIVINATION = "DIVINATION"
+    AGREE = "AGREE"
+    ESTIMATE = "ESTIMATE"
