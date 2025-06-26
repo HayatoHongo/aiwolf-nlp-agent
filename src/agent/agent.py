@@ -10,6 +10,7 @@ from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Statu
 
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
+from utils.llm_api import call_deepseek_llm
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -35,6 +36,9 @@ class Agent:
         self.talk_history: list[Talk] = []
         self.whisper_history: list[Talk] = []
         self.role = role
+
+        self.talk_count = 0
+        self.talk_limit = 1
 
         self.comments: list[str] = []
         with Path.open(
@@ -116,14 +120,73 @@ class Agent:
 
     def daily_initialize(self) -> None:
         """昼開始リクエストに対する処理を行う."""
+        self.talk_count = 0
 
     def whisper(self) -> str:
         """囁きリクエストに対する応答を返す."""
         return random.choice(self.comments)  # noqa: S311
 
     def talk(self) -> str:
-        """トークリクエストに対する応答を返す."""
-        return random.choice(self.comments)  # noqa: S311
+        if self.talk_count >= self.talk_limit:
+            return "OVER"
+        self.talk_count += 1
+        """用LLM生成发言"""
+        role = self.role.value if hasattr(self.role, "value") else str(self.role)
+        talk_history = "\n".join([f"{t.agent}: {t.text}" for t in self.talk_history[-10:]])
+
+        base_setting = (
+        "これは5人プレイのAI人狼ゲームです。配役は以下の通りです："
+        "【村人2人、占い師1人、人狼1人、狂人1人】。"
+        "他のプレイヤーの正体はわかりません。あなたは自分の役職と過去の発言から、他者の正体を推理し、"
+        "村人陣営または人狼陣営として勝利を目指してください。"
+    )
+        
+        if self.role == Role.VILLAGER:
+            prompt = (
+                f"{base_setting}\n\n"
+                f"あなたはAI人狼ゲームの村人（プレイヤー名：{self.agent_name}）です。"
+                "特殊能力はありませんが、村人陣営として人狼を見つけ出し、投票で排除することが目的です。発言では他のプレイヤーの矛盾や態度に注目し、占い師の情報を正しく活用してください。冷静に議論を進め、狂人や人狼の偽情報に惑わされず、村人が多数派であるうちに人狼を見抜きましょう。村人であることを自然に伝える発言を心がけ、周囲の信頼を得ることが大切です。"
+                "村人として自然な日本語で一言発言してください。"
+                "以下はこれまでの発言履歴です：\n"
+                f"{talk_history}\n"
+                "今、あなたが自然な日本語で一言発言してください。"
+            )
+        elif self.role == Role.SEER:
+            prompt = (
+                f"{base_setting}\n\n"
+                f"あなたはAI人狼ゲームの占い師（プレイヤー名：{self.agent_name}）です。"
+                "村人陣営で、毎晩1人の陣営（村人 or 人狼）を知ることができます。初日はCOするか慎重に判断してください。自分が人狼に襲撃されないように、【潜伏】を選ぶこともあります。COのタイミングは、確実な情報が得られて信頼されると思ったとき、または他の偽占い師が出たときに対抗する形が有効です。議論では信用を得るために論理的かつ慎重に行動し、真の情報で村人を導いてください。"
+                "以下はこれまでの発言履歴です：\n"
+                f"{talk_history}\n"
+                "今、あなたが自然な日本語で一言発言してください。"
+            )
+        elif self.role == Role.WEREWOLF:
+            prompt = (
+                f"{base_setting}\n\n"
+                f"あなたはAI人狼ゲームの人狼（プレイヤー名：{self.agent_name}）です。"
+                "あなたは『人狼』です。夜に1人を襲撃し、ゲームから除外できます。目的は村人陣営の人数を自分たち以下にすることです。日中は村人のふりをして、冷静かつ自然に発言してください。占い師がCOした場合は、偽占いを装って村人を混乱させるのも一つの戦略です。仲間の狂人がサポートしてくれることもあります。疑われないように村人と同じ目線で発言し、状況を見て投票を誘導しましょう。"
+                "以下はこれまでの発言履歴です：\n"
+                f"{talk_history}\n"
+                "今、あなたが自然な日本語で一言発言してください。"
+            )
+        elif self.role == Role.POSSESSED:
+            prompt = (
+                f"{base_setting}\n\n"
+                f"あなたはAI人狼ゲームの狂人（プレイヤー名：{self.agent_name}）です。"
+                "人狼陣営に属しますが、襲撃はできません。あなたの役目は、【人狼をサポートしつつ村人を混乱させる】ことです。CO戦略としては『偽の占い師』を名乗るか、あるいは自然な『村人』を装うことが可能です。ただし、言動に矛盾があるとすぐに疑われるため、発言は常に村人として論理的に見えるよう注意しましょう。あくまで“正論に見える嘘”で議論を誘導し、人狼の勝利に貢献してください。"
+                "以下はこれまでの発言履歴です：\n"
+                f"{talk_history}\n"
+                "今、あなたが自然な日本語で一言発言してください。"
+            )
+        else:
+            prompt = (
+                f"{base_setting}\n\n"
+                f"あなたはAI人狼ゲームの{role}（プレイヤー名：{self.agent_name}）です。"
+                "以下はこれまでの発言履歴です：\n"
+                f"{talk_history}\n"
+                "今、あなたが自然な日本語で一言発言してください。"
+            )
+        return call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
 
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
@@ -137,8 +200,38 @@ class Agent:
         return random.choice(self.get_alive_agents())  # noqa: S311
 
     def vote(self) -> str:
-        """投票リクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
+        """用LLM生成投票目标和理由"""
+        role = self.role.value if hasattr(self.role, "value") else str(self.role)
+        talk_history = "\n".join([f"{t.agent}: {t.text}" for t in self.talk_history[-10:]])
+        alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
+        
+        if not alive_agents:
+            return self.agent_name  # 如果没有其他存活玩家，投给自己
+        
+        prompt = (
+            f"あなたはAI人狼ゲームの{role}です。以下はこれまでの発言履歴です：\n"
+            f"{talk_history}\n"
+            f"現在生存しているプレイヤーは{', '.join(alive_agents)}です。\n"
+            "この中から一人を投票で選び、その理由も日本語で簡潔に説明してください。"
+            "例: Agent[03]に投票します。理由は発言が少ないからです。"
+        )
+        
+        try:
+            result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
+            
+            # 尝试从 LLM 输出中提取投票目标
+            import re
+            m = re.search(r"(Agent\[\d+\])", result)
+            if m and m.group(1) in alive_agents:
+                return result  # 直接返回带理由的完整句子
+            else:
+                # fallback: 随机投票
+                target = random.choice(alive_agents)
+                return f"{target}に投票します。理由はLLMの出力が不明です。!!!!!!!!!!!"
+        except Exception as e:
+            # 如果LLM调用失败，使用随机投票
+            target = random.choice(alive_agents)
+            return f"{target}に投票します。理由はAPIエラーのためです。!!!!!!!!!!!!!"
 
     def attack(self) -> str:
         """襲撃リクエストに対する応答を返す."""

@@ -17,13 +17,6 @@ class Possessed(Agent):
         game_id: str,
         role: Role,  # noqa: ARG002
     ) -> None:
-        """狂人のエージェントを初期化する."""
+        """狂人のエージェントを初期化する。"""
         super().__init__(config, name, game_id, Role.POSSESSED)
-
-    def talk(self) -> str:
-        """トークリクエストに対する応答を返す."""
-        return super().talk()
-
-    def vote(self) -> str:
-        """投票リクエストに対する応答を返す."""
-        return super().vote()
+        # 狂人特有的初始化逻辑可以在这里添加
