@@ -59,7 +59,7 @@ class PlayerWrap:
 @dataclass
 class GameState:
     """ゲーム状態"""
-    day: int = 1
+    day: int = 0
     phase: GamePhase = GamePhase.INITIALIZE
     players: Dict[str, PlayerWrap] = None
     game_log: List[str] = None

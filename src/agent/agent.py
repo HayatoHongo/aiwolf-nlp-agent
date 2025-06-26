@@ -37,8 +37,7 @@ class Agent:
         self.whisper_history: list[Talk] = []
         self.role = role
 
-        self.talk_count = 0
-        self.talk_limit = 1
+        self.day = 0
 
         self.comments: list[str] = []
         with Path.open(
@@ -103,6 +102,10 @@ class Agent:
         if self.request == Request.INITIALIZE:
             self.talk_history: list[Talk] = []
             self.whisper_history: list[Talk] = []
+        if hasattr(packet, "day"):
+            self.day = packet.day
+        elif hasattr(packet, "info") and hasattr(packet.info, "day"):
+            self.day = packet.info.day
         self.agent_logger.logger.debug(packet)
 
     def get_alive_agents(self) -> list[str]:
@@ -127,19 +130,34 @@ class Agent:
         return random.choice(self.comments)  # noqa: S311
 
     def talk(self) -> str:
-        if self.talk_count >= self.talk_limit:
-            return "OVER"
-        self.talk_count += 1
         """用LLM生成发言"""
         role = self.role.value if hasattr(self.role, "value") else str(self.role)
-        talk_history = "\n".join([f"{t.agent}: {t.text}" for t in self.talk_history[-10:]])
+        all_talks = self.talk_history + self.whisper_history
+        filtered_talks = [t for t in all_talks if t.text not in ("OVER", "SKIP")]
+        talk_history = "\n".join([f"{t.agent}: {t.text}" for t in filtered_talks])
 
-        base_setting = (
-        "これは5人プレイのAI人狼ゲームです。配役は以下の通りです："
-        "【村人2人、占い師1人、人狼1人、狂人1人】。"
-        "他のプレイヤーの正体はわかりません。あなたは自分の役職と過去の発言から、他者の正体を推理し、"
-        "村人陣営または人狼陣営として勝利を目指してください。"
-    )
+        last_executed = getattr(self.info, "executed_agent", None)
+        if not last_executed:
+            last_executed = "なし"
+        last_attacked = getattr(self.info, "attacked_agent", None)
+        if not last_attacked:
+            last_attacked = "なし"
+
+        if self.day == 0:
+            base_setting = (
+                f"これは5人プレイのAI人狼ゲームです。今日は{self.day}日目です。"
+                "配役は以下の通りです：【村人2人、占い師1人、人狼1人、狂人1人】。"
+                "今日は最初の議論日です。"
+            )
+        else:
+            base_setting = (
+            f"これは5人プレイのAI人狼ゲームです。今日は{self.day}日目です。昨日は{last_executed}が処刑され、{last_attacked}が襲撃されました。"
+            "配役は以下の通りです：【村人2人、占い師1人、人狼1人、狂人1人】。"
+            "他のプレイヤーの正体はわかりません。あなたは自分の役職と過去の発言から、他者の正体を推理し、"
+            "村人陣営または人狼陣営として勝利を目指してください。"
+            "同じ内容を繰り返さず、新しい視点や推理を述べてください。"
+            "もし本当に何も言うことがなければ、SKIPとだけ答えてください。"
+        )
         
         if self.role == Role.VILLAGER:
             prompt = (
@@ -173,7 +191,7 @@ class Agent:
             prompt = (
                 f"{base_setting}\n\n"
                 f"あなたはAI人狼ゲームの狂人（プレイヤー名：{self.agent_name}）です。"
-                "人狼陣営に属しますが、襲撃はできません。あなたの役目は、【人狼をサポートしつつ村人を混乱させる】ことです。CO戦略としては『偽の占い師』を名乗るか、あるいは自然な『村人』を装うことが可能です。ただし、言動に矛盾があるとすぐに疑われるため、発言は常に村人として論理的に見えるよう注意しましょう。あくまで“正論に見える嘘”で議論を誘導し、人狼の勝利に貢献してください。"
+                "人狼陣営に属しますが、襲撃はできません。あなたの役目は、【人狼をサポートしつつ村人を混乱させる】ことです。CO戦略としては『偽の占い師』を名乗るか、あるいは自然な『村人』を装うことが可能です。ただし、言動に矛盾があるとすぐに疑われるため、発言は常に村人として論理的に見えるよう注意しましょう。あくまで正論に見える嘘で議論を誘導し、人狼の勝利に貢献してください。"
                 "以下はこれまでの発言履歴です：\n"
                 f"{talk_history}\n"
                 "今、あなたが自然な日本語で一言発言してください。"
@@ -186,7 +204,10 @@ class Agent:
                 f"{talk_history}\n"
                 "今、あなたが自然な日本語で一言発言してください。"
             )
-        return call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
+        result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
+        if not result or result.strip().upper() == "SKIP":
+            return "SKIP"
+        return result
 
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
@@ -202,32 +223,46 @@ class Agent:
     def vote(self) -> str:
         """用LLM生成投票目标和理由"""
         role = self.role.value if hasattr(self.role, "value") else str(self.role)
-        talk_history = "\n".join([f"{t.agent}: {t.text}" for t in self.talk_history[-10:]])
+        all_talks = self.talk_history + self.whisper_history
+        filtered_talks = [t for t in all_talks if t.text not in ("OVER", "SKIP")]
+        talk_history = "\n".join([f"{t.agent}: {t.text}" for t in filtered_talks])
         alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
         
         if not alive_agents:
             return self.agent_name  # 如果没有其他存活玩家，投给自己
         
+        # 假设 alive_agents = ["ベンジャミン", "Agent[01]", "ケンジ", "Agent[02]"]
+        # 你可以构造一个映射字典
+        agent_map = {f"Agent[{i+1:02d}]": name for i, name in enumerate(alive_agents)}
+        agent_list_str = "\n".join([f"{v}（{k}）" for k, v in agent_map.items()])
+
         prompt = (
             f"あなたはAI人狼ゲームの{role}です。以下はこれまでの発言履歴です：\n"
             f"{talk_history}\n"
-            f"現在生存しているプレイヤーは{', '.join(alive_agents)}です。\n"
+            f"現在生存しているプレイヤーは以下の通りです：\n{agent_list_str}\n"
             "この中から一人を投票で選び、その理由も日本語で簡潔に説明してください。"
+            "投票先は 'Agent[xx]' または名前（例：ベンジャミン）どちらでも構いません。"
             "例: Agent[03]に投票します。理由は発言が少ないからです。"
+            "例: ベンジャミンに投票します。理由は発言が少ないからです。"
         )
         
         try:
             result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
             
-            # 尝试从 LLM 输出中提取投票目标
+            # 先匹配 Agent[xx]
             import re
             m = re.search(r"(Agent\[\d+\])", result)
             if m and m.group(1) in alive_agents:
-                return result  # 直接返回带理由的完整句子
-            else:
-                # fallback: 随机投票
-                target = random.choice(alive_agents)
-                return f"{target}に投票します。理由はLLMの出力が不明です。!!!!!!!!!!!"
+                return result  # 直接返回
+
+            # 再匹配具体名字
+            for name in alive_agents:
+                if name in result:
+                    return result  # 直接返回
+
+            # fallback
+            target = random.choice(alive_agents)
+            return f"{target}に投票します。理由はLLMの出力が不明です。!!!!!!!!!!!"
         except Exception as e:
             # 如果LLM调用失败，使用随机投票
             target = random.choice(alive_agents)
