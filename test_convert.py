@@ -4,7 +4,9 @@ from lib.aiwolf_share.main_classes import Sentence
 text = "Agent[02]の言っていることは信じられない。今夜はAgent[01]に投票するよ。"
 
 comment1 = Comment(text, talker="Agent[00]", me="Agent[03]")
-protocol_list: list[Sentence] = comment1.remark_to_protocol(ruizido_check=True, check_gpt=True)
+protocol_list: list[Sentence] = comment1.remark_to_protocol(
+    ruizido_check=True, check_gpt=True
+)
 
 
 for protocol in protocol_list:
