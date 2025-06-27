@@ -91,11 +91,13 @@ class Werewolf(Agent):
         self.werewolves.clear()
         self.my_judge_queue.clear()
         self.allies = list(self.gameInfo.roleMap.keys()) if self.gameInfo else []
-        self.humans = (
-            [a for a in self.gameInfo.statusMap if a not in self.allies]
-            if self.gameInfo
-            else []
-        )
+
+        # 人間リストを安全に作成
+        if self.gameInfo and hasattr(self.gameInfo, "statusMap"):
+            self.humans = [a for a in self.gameInfo.statusMap if a not in self.allies]
+        else:
+            self.humans = []
+
         self.attack_vote_candidate = None
         self.agent_possessed = None
         self.alive_possessed = False
@@ -347,6 +349,7 @@ class Werewolf(Agent):
             else None
         )
         tmp_vote_candidate = self.vote_candidate
+
         if latest_vote_list:
             if len(latest_vote_list) == 3:
                 alive_others = (
@@ -356,11 +359,18 @@ class Werewolf(Agent):
                 )
                 if self.vote_candidate in alive_others:
                     alive_others.remove(self.vote_candidate)
-                self.vote_candidate = (
-                    self.role_predictor.chooseMostLikely(Role.WEREWOLF, alive_others)
-                    if self.role_predictor
-                    else None
-                )
+                # 仲間を除外
+                alive_others = [
+                    agent for agent in alive_others if agent not in self.allies
+                ]
+                if alive_others and self.role_predictor:
+                    self.vote_candidate = self.role_predictor.chooseMostLikely(
+                        Role.WEREWOLF, alive_others
+                    )
+                elif alive_others:
+                    self.vote_candidate = alive_others[0]  # 安定性重視
+                else:
+                    self.vote_candidate = None
             else:
                 self.vote_candidate = (
                     self.changeVote(latest_vote_list, Role.POSSESSED, mostlikely=False)
@@ -369,28 +379,34 @@ class Werewolf(Agent):
                 )
             if self.vote_candidate in self.allies:
                 self.vote_candidate = tmp_vote_candidate
-            return (
-                self.vote_candidate if self.vote_candidate is not None else self.index
-            )
+            if self.vote_candidate is not None:
+                vote_target_id = self.agent_name_to_id(self.vote_candidate)
+                import json
+
+                data = {"agentIdx": vote_target_id}
+                return json.dumps(data, separators=(",", ":"))
+
         self.estimate_possessed()
         self.estimate_seer()
+
+        # 投票候補（人間のみ、仲間は除外）
         vote_candidates = (
             [agent for agent in self.humans if agent in self.alive]
             if hasattr(self, "humans")
             else []
         )
+
+        # 狂人は投票候補から除外
         if self.agent_possessed in vote_candidates:
             vote_candidates.remove(self.agent_possessed)
+
         if self.PP_flag:
             self.vote_candidate = (
                 self.role_predictor.chooseMostLikely(Role.VILLAGER, vote_candidates)
-                if self.role_predictor
-                else None
+                if self.role_predictor and vote_candidates
+                else (random.choice(vote_candidates) if vote_candidates else None)
             )
-            return (
-                self.vote_candidate if self.vote_candidate is not None else self.index
-            )
-        if self.alive_possessed:
+        elif self.alive_possessed:
             possessed_judge = self.get_possessed_divination()
             if possessed_judge:
                 target = possessed_judge.target
@@ -402,13 +418,14 @@ class Werewolf(Agent):
                         candidates = vote_candidates.copy()
                         if self.agent_possessed in candidates:
                             candidates.remove(self.agent_possessed)
-                        self.vote_candidate = (
-                            self.role_predictor.chooseLeastLikely(
+                        if candidates and self.role_predictor:
+                            self.vote_candidate = self.role_predictor.chooseLeastLikely(
                                 Role.WEREWOLF, candidates
                             )
-                            if self.role_predictor
-                            else None
-                        )
+                        elif candidates:
+                            self.vote_candidate = candidates[0]  # 安定性重視
+                        else:
+                            self.vote_candidate = None
                 elif result == Species.WEREWOLF:
                     if target in self.alive:
                         self.vote_candidate = target
@@ -416,115 +433,204 @@ class Werewolf(Agent):
                         candidates = vote_candidates.copy()
                         if self.agent_possessed in candidates:
                             candidates.remove(self.agent_possessed)
-                        self.vote_candidate = (
-                            self.role_predictor.chooseLeastLikely(
+                        if candidates and self.role_predictor:
+                            self.vote_candidate = self.role_predictor.chooseLeastLikely(
                                 Role.WEREWOLF, candidates
                             )
-                            if self.role_predictor
-                            else None
-                        )
+                        elif candidates:
+                            self.vote_candidate = candidates[0]  # 安定性重視
+                        else:
+                            self.vote_candidate = None
         else:
             if self.new_target is not None:
                 self.vote_candidate = self.new_target
             else:
-                self.vote_candidate = (
-                    self.role_predictor.chooseLeastLikely(
+                if vote_candidates and self.role_predictor:
+                    self.vote_candidate = self.role_predictor.chooseLeastLikely(
                         Role.WEREWOLF, vote_candidates
                     )
-                    if self.role_predictor
-                    else None
-                )
-        vote_target = (
-            self.vote_candidate if self.vote_candidate is not None else self.index
-        )
+                elif vote_candidates:
+                    self.vote_candidate = vote_candidates[0]  # 安定性重視
+                else:
+                    self.vote_candidate = None
+
+        # 最終的なフォールバック
+        if self.vote_candidate is None or self.vote_candidate in self.allies:
+            # 人間の候補から選択
+            human_candidates = [
+                agent
+                for agent in self.humans
+                if agent in self.alive and agent not in self.allies
+            ]
+            if human_candidates:
+                self.vote_candidate = human_candidates[0]  # 安定性重視
+            else:
+                # 最終手段として生存エージェントから選択（仲間以外）
+                alive_agents = self.get_alive_agents()
+                non_ally_agents = [
+                    agent for agent in alive_agents if agent not in self.allies
+                ]
+                self.vote_candidate = non_ally_agents[0] if non_ally_agents else "1"
+
+        vote_target = self.vote_candidate if self.vote_candidate is not None else "1"
+
+        # エージェント名を整数IDに安全に変換
+        vote_target_id = self.agent_name_to_id(vote_target)
         import json
 
-        data = {"agentIdx": int(vote_target)}
-        return json.dumps(data, separators=(",", ": "))
+        data = {"agentIdx": vote_target_id}
+        return json.dumps(data, separators=(",", ":"))
 
     def whisper(self) -> str:
         return super().whisper()
 
     def attack(self) -> str:
+        """攻撃リクエストに対する応答を返す（JSON形式）."""
         self.estimate_possessed()
         self.estimate_seer()
-        attack_vote_candidates = (
-            [agent for agent in self.humans if agent in self.alive]
-            if hasattr(self, "humans")
-            else []
-        )
-        if self.agent_possessed in attack_vote_candidates:
-            attack_vote_candidates.remove(self.agent_possessed)
-        if self.guard_success_agent in attack_vote_candidates:
-            attack_vote_candidates.remove(self.guard_success_agent)
-        latest_vote_list = (
-            self.gameInfo.latestVoteList
-            if self.gameInfo and hasattr(self.gameInfo, "latestVoteList")
-            else []
-        )
-        self.threat = [
-            v.agent
-            for v in latest_vote_list
-            if hasattr(v, "agent")
-            and hasattr(v, "target")
-            and v.target in self.allies
-            and v.agent in attack_vote_candidates
+
+        # 生存エージェントID（自分と仲間以外）
+        alive_ids = self.get_alive_agent_ids()
+        my_id = int(self.index) if self.index and self.index.isdigit() else 1
+
+        # 仲間（人狼）のIDリストを作成
+        ally_ids = []
+        if hasattr(self, "allies"):
+            for ally in self.allies:
+                ally_id = self.agent_name_to_id(ally) if isinstance(ally, str) else ally
+                ally_ids.append(ally_id)
+        ally_ids.append(my_id)  # 自分も追加
+
+        # 攻撃候補（仲間以外の生存エージェント）
+        attack_candidates = [
+            agent_id for agent_id in alive_ids if agent_id not in ally_ids
         ]
-        others_seer_co = (
-            [
-                a
-                for a in self.comingout_map
-                if a in attack_vote_candidates and self.comingout_map[a] == Role.SEER
-            ]
-            if hasattr(self, "comingout_map")
-            else []
-        )
-        for seer_candidate in others_seer_co:
-            if seer_candidate in attack_vote_candidates:
-                attack_vote_candidates.remove(seer_candidate)
-        if not attack_vote_candidates:
-            attack_vote_candidates = (
-                [agent for agent in self.humans if agent in self.alive]
-                if hasattr(self, "humans")
-                else []
-            )
-        if self.threat:
-            self.attack_vote_candidate = (
-                self.role_predictor.chooseStrongLikely(
-                    Role.VILLAGER, self.threat, coef=3.0
-                )
-                if self.role_predictor
-                else None
-            )
+
+        # 狂人のIDを除外
+        if hasattr(self, "agent_possessed") and self.agent_possessed:
+            possessed_id = self.agent_name_to_id(self.agent_possessed)
+            if possessed_id in attack_candidates:
+                attack_candidates.remove(possessed_id)
+
+        # 護衛成功したエージェントのIDを除外
+        if hasattr(self, "guard_success_agent") and self.guard_success_agent:
+            guard_success_id = self.agent_name_to_id(self.guard_success_agent)
+            if guard_success_id in attack_candidates:
+                attack_candidates.remove(guard_success_id)
+
+        # 脅威となるエージェントIDを特定
+        threat_ids = []
+        if (
+            self.gameInfo
+            and hasattr(self.gameInfo, "latestVoteList")
+            and self.gameInfo.latestVoteList
+        ):
+            for vote in self.gameInfo.latestVoteList:
+                if hasattr(vote, "agent") and hasattr(vote, "target"):
+                    voter_id = self.agent_name_to_id(vote.agent)
+                    target_id = self.agent_name_to_id(vote.target)
+                    if target_id in ally_ids and voter_id in attack_candidates:
+                        threat_ids.append(voter_id)
+
+        # 占い師COしているエージェントID
+        seer_co_ids = []
+        if hasattr(self, "comingout_map"):
+            for agent_name, role in self.comingout_map.items():
+                if role == Role.SEER:
+                    agent_id = self.agent_name_to_id(agent_name)
+                    if agent_id in attack_candidates:
+                        seer_co_ids.append(agent_id)
+
+        # 占い師CO以外の候補
+        non_seer_candidates = [
+            agent_id for agent_id in attack_candidates if agent_id not in seer_co_ids
+        ]
+
+        attack_target_id = None
+
+        # 攻撃戦略
+        if threat_ids:
+            # 脅威となるエージェントを優先攻撃
+            if self.role_predictor:
+                try:
+                    str_candidates = [str(id) for id in threat_ids]
+                    chosen_str = self.role_predictor.chooseStrongLikely(
+                        Role.VILLAGER, str_candidates, coef=3.0
+                    )
+                    attack_target_id = (
+                        int(chosen_str)
+                        if chosen_str and chosen_str.isdigit()
+                        else threat_ids[0]
+                    )
+                except Exception as e:
+                    print(f"[Werewolf Warning] role_predictor failed: {e}")
+                    attack_target_id = threat_ids[0]
+            else:
+                attack_target_id = threat_ids[0]  # 安定性重視
+        elif non_seer_candidates:
+            # 占い師CO以外から選択
+            if self.role_predictor:
+                try:
+                    str_candidates = [str(id) for id in non_seer_candidates]
+                    chosen_str = self.role_predictor.chooseStrongLikely(
+                        Role.VILLAGER, str_candidates, coef=3.0
+                    )
+                    attack_target_id = (
+                        int(chosen_str)
+                        if chosen_str and chosen_str.isdigit()
+                        else non_seer_candidates[0]
+                    )
+                except Exception as e:
+                    print(f"[Werewolf Warning] role_predictor failed: {e}")
+                    attack_target_id = non_seer_candidates[0]
+            else:
+                attack_target_id = non_seer_candidates[0]  # 安定性重視
+        elif attack_candidates:
+            # 占い師COも含めて選択（最終手段）
+            if self.role_predictor:
+                try:
+                    str_candidates = [str(id) for id in attack_candidates]
+                    chosen_str = self.role_predictor.chooseStrongLikely(
+                        Role.VILLAGER, str_candidates, coef=3.0
+                    )
+                    attack_target_id = (
+                        int(chosen_str)
+                        if chosen_str and chosen_str.isdigit()
+                        else attack_candidates[0]
+                    )
+                except Exception as e:
+                    print(f"[Werewolf Warning] role_predictor failed: {e}")
+                    attack_target_id = attack_candidates[0]
+            else:
+                attack_target_id = attack_candidates[0]  # 安定性重視
         else:
-            self.attack_vote_candidate = (
-                self.role_predictor.chooseStrongLikely(
-                    Role.VILLAGER, attack_vote_candidates, coef=3.0
-                )
-                if self.role_predictor
-                else None
-            )
+            # 最終フォールバック
+            other_ids = [agent_id for agent_id in alive_ids if agent_id != my_id]
+            attack_target_id = other_ids[0] if other_ids else (1 if my_id != 1 else 2)
+
+        # 狂人への攻撃を避ける最終チェック
         if (
             self.role_predictor
-            and self.role_predictor.getMostLikelyRole(self.attack_vote_candidate)
-            == Role.POSSESSED
+            and attack_target_id
+            and hasattr(self, "agent_possessed")
+            and self.agent_possessed
         ):
-            self.attack_vote_candidate = (
-                self.role_predictor.chooseLeastLikely(
-                    Role.POSSESSED, attack_vote_candidates
-                )
-                if self.role_predictor
-                else self.attack_vote_candidate
-            )
-        attack_target = (
-            self.attack_vote_candidate
-            if self.attack_vote_candidate is not None
-            else self.index
-        )
+            possessed_id = self.agent_name_to_id(self.agent_possessed)
+            if attack_target_id == possessed_id:
+                remaining_candidates = [
+                    agent_id
+                    for agent_id in attack_candidates
+                    if agent_id != attack_target_id and agent_id != possessed_id
+                ]
+                if remaining_candidates:
+                    attack_target_id = remaining_candidates[0]
+
+        print(f"[DEBUG] Werewolf Attack: My ID={my_id}, Target ID={attack_target_id}")
+
         import json
 
-        data = {"agentIdx": int(attack_target)}
-        return json.dumps(data, separators=(",", ": "))
+        data = {"agentIdx": attack_target_id}
+        return json.dumps(data, separators=(",", ":"))
 
     def action(self) -> str:
         if self.request == "ATTACK":

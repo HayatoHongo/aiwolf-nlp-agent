@@ -71,9 +71,19 @@ class Possessed(Agent):
         self.co_date = 1
         self.has_co = False
         self.my_judge_queue.clear()
-        self.not_judged_agents = [
-            agent for agent in self.gameInfo.statusMap if agent != self.index
-        ]
+
+        # self.indexが有効であることを確認してから使用
+        if self.index and self.index.isdigit():
+            self.not_judged_agents = [
+                agent
+                for agent in (self.gameInfo.statusMap if self.gameInfo else {})
+                if agent != int(self.index)
+            ]
+        else:
+            self.not_judged_agents = (
+                list(self.gameInfo.statusMap.keys()) if self.gameInfo else []
+            )
+
         self.num_wolves = (
             self.gameSetting.roleNumMap.get(Role.WEREWOLF, 0) if self.gameSetting else 0
         )
@@ -284,9 +294,11 @@ class Possessed(Agent):
         vote_target = (
             self.vote_candidate if self.vote_candidate is not None else self.index
         )
+        # エージェント名を整数IDに安全に変換
+        vote_target_id = self.agent_name_to_id(vote_target)
         import json
 
-        data = {"agentIdx": int(vote_target)}
+        data = {"agentIdx": vote_target_id}
         return json.dumps(data, separators=(",", ":"))
 
     def parse_info(self, receive: str) -> None:
