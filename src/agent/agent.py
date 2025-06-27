@@ -46,6 +46,9 @@ class Agent:
         ) as f:
             self.comments = f.read().splitlines()
 
+        self.talk_count = 0
+        self.talk_limit = 1  # 或你想要的上限
+
     @staticmethod
     def timeout(func: Callable) -> Callable:
         """アクションタイムアウトを設定するデコレータ."""
@@ -130,6 +133,9 @@ class Agent:
         return random.choice(self.comments)  # noqa: S311
 
     def talk(self) -> str:
+        if hasattr(self, "talk_limit") and self.talk_count >= self.talk_limit:
+            return "OVER"
+        self.talk_count += 1
         """用LLM生成发言"""
         role = self.role.value if hasattr(self.role, "value") else str(self.role)
         all_talks = self.talk_history + self.whisper_history
