@@ -141,6 +141,15 @@ class Agent:
         all_talks = self.talk_history + self.whisper_history
         filtered_talks = [t for t in all_talks if t.text not in ("OVER", "SKIP")]
         talk_history = "\n".join([f"{t.agent}: {t.text}" for t in filtered_talks])
+        persona = self.info.profile if self.info and self.info.profile else ""
+        display_name = self.info.agent if self.info and self.info.agent else self.agent_name
+        persona_profile = ""
+        if self.info and self.info.profile:
+            persona_profile = (
+                f"あなたの性格・背景情報は以下の通りです：\n{self.info.profile}\n"
+                "必ずこの性格・口調・話し方を守って発言してください。\n"
+            )
+
 
         last_executed = getattr(self.info, "executed_agent", None)
         if not last_executed:
@@ -148,27 +157,29 @@ class Agent:
         last_attacked = getattr(self.info, "attacked_agent", None)
         if not last_attacked:
             last_attacked = "なし"
+            
 
         if self.day == 0:
             base_setting = (
                 f"これは5人プレイのAI人狼ゲームです。今日は{self.day}日目です。"
-                "配役は以下の通りです：【村人2人、占い師1人、人狼1人、狂人1人】。"
+                "配役は以下の通りです：【村人2人、占い師1人、人狼1人、狂人1人】。\n"
                 "今日は最初の議論日です。"
             )
         else:
             base_setting = (
-            f"これは5人プレイのAI人狼ゲームです。今日は{self.day}日目です。昨日は{last_executed}が処刑され、{last_attacked}が襲撃されました。"
-            "配役は以下の通りです：【村人2人、占い師1人、人狼1人、狂人1人】。"
-            "他のプレイヤーの正体はわかりません。あなたは自分の役職と過去の発言から、他者の正体を推理し、"
-            "村人陣営または人狼陣営として勝利を目指してください。"
-            "同じ内容を繰り返さず、新しい視点や推理を述べてください。"
-            "もし本当に何も言うことがなければ、SKIPとだけ答えてください。"
-        )
+                f"これは5人プレイのAI人狼ゲームです。今日は{self.day}日目です。昨日は{last_executed}が処刑され、{last_attacked}が襲撃されました。"
+                "配役は以下の通りです：【村人2人、占い師1人、人狼1人、狂人1人】。\n"
+                "他のプレイヤーの正体はわかりません。あなたは自分の役職と過去の発言から、他者の正体を推理し、"
+                "村人陣営または人狼陣営として勝利を目指してください。"
+                "同じ内容を繰り返さず、新しい視点や推理を述べてください。気になる点について他の人に質問してもいいです。"
+                "もし本当に何も言うことがなければ、SKIPとだけ答えてください。"
+            )
         
         if self.role == Role.VILLAGER:
             prompt = (
                 f"{base_setting}\n\n"
-                f"あなたはAI人狼ゲームの村人（プレイヤー名：{self.agent_name}）です。"
+                f"{persona_profile}"
+                f"あなたはAI人狼ゲームの村人（プレイヤー名：{display_name}）です。"
                 "特殊能力はありませんが、村人陣営として人狼を見つけ出し、投票で排除することが目的です。発言では他のプレイヤーの矛盾や態度に注目し、占い師の情報を正しく活用してください。冷静に議論を進め、狂人や人狼の偽情報に惑わされず、村人が多数派であるうちに人狼を見抜きましょう。村人であることを自然に伝える発言を心がけ、周囲の信頼を得ることが大切です。"
                 "村人として自然な日本語で一言発言してください。"
                 "以下はこれまでの発言履歴です：\n"
@@ -178,7 +189,8 @@ class Agent:
         elif self.role == Role.SEER:
             prompt = (
                 f"{base_setting}\n\n"
-                f"あなたはAI人狼ゲームの占い師（プレイヤー名：{self.agent_name}）です。"
+                f"{persona_profile}"
+                f"あなたはAI人狼ゲームの占い師（プレイヤー名：{display_name}）です。"
                 "村人陣営で、毎晩1人の陣営（村人 or 人狼）を知ることができます。初日はCOするか慎重に判断してください。自分が人狼に襲撃されないように、【潜伏】を選ぶこともあります。COのタイミングは、確実な情報が得られて信頼されると思ったとき、または他の偽占い師が出たときに対抗する形が有効です。議論では信用を得るために論理的かつ慎重に行動し、真の情報で村人を導いてください。"
                 "以下はこれまでの発言履歴です：\n"
                 f"{talk_history}\n"
@@ -187,7 +199,8 @@ class Agent:
         elif self.role == Role.WEREWOLF:
             prompt = (
                 f"{base_setting}\n\n"
-                f"あなたはAI人狼ゲームの人狼（プレイヤー名：{self.agent_name}）です。"
+                f"{persona_profile}"
+                f"あなたはAI人狼ゲームの人狼（プレイヤー名：{display_name}）です。"
                 "あなたは『人狼』です。夜に1人を襲撃し、ゲームから除外できます。目的は村人陣営の人数を自分たち以下にすることです。日中は村人のふりをして、冷静かつ自然に発言してください。占い師がCOした場合は、偽占いを装って村人を混乱させるのも一つの戦略です。仲間の狂人がサポートしてくれることもあります。疑われないように村人と同じ目線で発言し、状況を見て投票を誘導しましょう。"
                 "以下はこれまでの発言履歴です：\n"
                 f"{talk_history}\n"
@@ -196,7 +209,8 @@ class Agent:
         elif self.role == Role.POSSESSED:
             prompt = (
                 f"{base_setting}\n\n"
-                f"あなたはAI人狼ゲームの狂人（プレイヤー名：{self.agent_name}）です。"
+                f"{persona_profile}"
+                f"あなたはAI人狼ゲームの狂人（プレイヤー名：{display_name}）です。"
                 "人狼陣営に属しますが、襲撃はできません。あなたの役目は、【人狼をサポートしつつ村人を混乱させる】ことです。CO戦略としては『偽の占い師』を名乗るか、あるいは自然な『村人』を装うことが可能です。ただし、言動に矛盾があるとすぐに疑われるため、発言は常に村人として論理的に見えるよう注意しましょう。あくまで正論に見える嘘で議論を誘導し、人狼の勝利に貢献してください。"
                 "以下はこれまでの発言履歴です：\n"
                 f"{talk_history}\n"
@@ -205,7 +219,8 @@ class Agent:
         else:
             prompt = (
                 f"{base_setting}\n\n"
-                f"あなたはAI人狼ゲームの{role}（プレイヤー名：{self.agent_name}）です。"
+                f"{persona_profile}"
+                f"あなたはAI人狼ゲームの{role}（プレイヤー名：{display_name}）です。"
                 "以下はこれまでの発言履歴です：\n"
                 f"{talk_history}\n"
                 "今、あなたが自然な日本語で一言発言してください。"
@@ -227,7 +242,7 @@ class Agent:
         return random.choice(self.get_alive_agents())  # noqa: S311
 
     def vote(self) -> str:
-        """用LLM生成投票目标和理由"""
+        """用LLM生成投票目标和理由，并详细记录日志，返回值只返回玩家名。"""
         role = self.role.value if hasattr(self.role, "value") else str(self.role)
         all_talks = self.talk_history + self.whisper_history
         filtered_talks = [t for t in all_talks if t.text not in ("OVER", "SKIP")]
@@ -235,10 +250,9 @@ class Agent:
         alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
         
         if not alive_agents:
+            print("No alive agents, voting for self.")
             return self.agent_name  # 如果没有其他存活玩家，投给自己
         
-        # 假设 alive_agents = ["ベンジャミン", "Agent[01]", "ケンジ", "Agent[02]"]
-        # 你可以构造一个映射字典
         agent_map = {f"Agent[{i+1:02d}]": name for i, name in enumerate(alive_agents)}
         agent_list_str = "\n".join([f"{v}（{k}）" for k, v in agent_map.items()])
 
@@ -254,25 +268,27 @@ class Agent:
         
         try:
             result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
-            
-            # 先匹配 Agent[xx]
+            print(f"LLM输出: {result}")
             import re
-            m = re.search(r"(Agent\[\d+\])", result)
-            if m and m.group(1) in alive_agents:
-                return result  # 直接返回
-
+            # 先匹配 Agent[xx]
+            m = re.search(r"(Agent\\[\\d+\\])", result)
+            if m and m.group(1) in agent_map:
+                target_name = agent_map[m.group(1)]
+                print(f"匹配到编号: {m.group(1)}，实际投票对象: {target_name}")
+                return target_name
             # 再匹配具体名字
             for name in alive_agents:
                 if name in result:
-                    return result  # 直接返回
-
+                    print(f"匹配到名字: {name}")
+                    return name
             # fallback
             target = random.choice(alive_agents)
-            return f"{target}に投票します。理由はLLMの出力が不明です。!!!!!!!!!!!"
+            print(f"未匹配到，随机投票: {target}")
+            return target
         except Exception as e:
-            # 如果LLM调用失败，使用随机投票
             target = random.choice(alive_agents)
-            return f"{target}に投票します。理由はAPIエラーのためです。!!!!!!!!!!!!!"
+            print(f"LLM异常: {e}，随机投票: {target}")
+            return target
 
     def attack(self) -> str:
         """襲撃リクエストに対する応答を返す."""
