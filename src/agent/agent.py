@@ -49,6 +49,8 @@ class Agent:
         self.talk_count = 0
         self.talk_limit = 1  # 或你想要的上限
 
+        self.prev_day_summary = ""
+
     @staticmethod
     def timeout(func: Callable) -> Callable:
         """アクションタイムアウトを設定するデコレータ."""
@@ -150,6 +152,20 @@ class Agent:
                 "必ずこの性格・口調・話し方を守って発言してください。\n"
             )
 
+        prev_summary = ""
+        if self.prev_day_summary:
+            prev_summary = (
+                "【前日の議論まとめ】\n"
+                f"{self.prev_day_summary}\n"
+                "この内容をよく読み、あなたの役職として今日どのような戦略・推理・発言をすべきか考えてください。\n"
+                "・誰が怪しいか、なぜそう思うか\n"
+                "・どんな情報が新たに出てきたか\n"
+                "・今日の議論で注目すべきポイント\n"
+                "・他のプレイヤーに質問したいことや、議論を深めるための提案\n"
+                "などを意識して、自然な日本語で一言発言してください。\n"
+                "※同じ内容の繰り返しや曖昧な発言は避け、できるだけ具体的な推理や意見を述べてください。\n"
+                "本当に何も言うことがなければ「SKIP」とだけ答えてください。\n"
+            )
 
         last_executed = getattr(self.info, "executed_agent", None)
         if not last_executed:
@@ -177,7 +193,8 @@ class Agent:
         
         if self.role == Role.VILLAGER:
             prompt = (
-                f"{base_setting}\n\n"
+                f"{base_setting}\n"
+                f"{prev_summary}"
                 f"{persona_profile}"
                 f"あなたはAI人狼ゲームの村人（プレイヤー名：{display_name}）です。"
                 "特殊能力はありませんが、村人陣営として人狼を見つけ出し、投票で排除することが目的です。発言では他のプレイヤーの矛盾や態度に注目し、占い師の情報を正しく活用してください。冷静に議論を進め、狂人や人狼の偽情報に惑わされず、村人が多数派であるうちに人狼を見抜きましょう。村人であることを自然に伝える発言を心がけ、周囲の信頼を得ることが大切です。"
@@ -188,7 +205,8 @@ class Agent:
             )
         elif self.role == Role.SEER:
             prompt = (
-                f"{base_setting}\n\n"
+                f"{base_setting}\n"
+                f"{prev_summary}"
                 f"{persona_profile}"
                 f"あなたはAI人狼ゲームの占い師（プレイヤー名：{display_name}）です。"
                 "村人陣営で、毎晩1人の陣営（村人 or 人狼）を知ることができます。初日はCOするか慎重に判断してください。自分が人狼に襲撃されないように、【潜伏】を選ぶこともあります。COのタイミングは、確実な情報が得られて信頼されると思ったとき、または他の偽占い師が出たときに対抗する形が有効です。議論では信用を得るために論理的かつ慎重に行動し、真の情報で村人を導いてください。"
@@ -198,7 +216,8 @@ class Agent:
             )
         elif self.role == Role.WEREWOLF:
             prompt = (
-                f"{base_setting}\n\n"
+                f"{base_setting}\n"
+                f"{prev_summary}"
                 f"{persona_profile}"
                 f"あなたはAI人狼ゲームの人狼（プレイヤー名：{display_name}）です。"
                 "あなたは『人狼』です。夜に1人を襲撃し、ゲームから除外できます。目的は村人陣営の人数を自分たち以下にすることです。日中は村人のふりをして、冷静かつ自然に発言してください。占い師がCOした場合は、偽占いを装って村人を混乱させるのも一つの戦略です。仲間の狂人がサポートしてくれることもあります。疑われないように村人と同じ目線で発言し、状況を見て投票を誘導しましょう。"
@@ -208,7 +227,8 @@ class Agent:
             )
         elif self.role == Role.POSSESSED:
             prompt = (
-                f"{base_setting}\n\n"
+                f"{base_setting}\n"
+                f"{prev_summary}"
                 f"{persona_profile}"
                 f"あなたはAI人狼ゲームの狂人（プレイヤー名：{display_name}）です。"
                 "人狼陣営に属しますが、襲撃はできません。あなたの役目は、【人狼をサポートしつつ村人を混乱させる】ことです。CO戦略としては『偽の占い師』を名乗るか、あるいは自然な『村人』を装うことが可能です。ただし、言動に矛盾があるとすぐに疑われるため、発言は常に村人として論理的に見えるよう注意しましょう。あくまで正論に見える嘘で議論を誘導し、人狼の勝利に貢献してください。"
@@ -218,7 +238,8 @@ class Agent:
             )
         else:
             prompt = (
-                f"{base_setting}\n\n"
+                f"{base_setting}\n"
+                f"{prev_summary}"
                 f"{persona_profile}"
                 f"あなたはAI人狼ゲームの{role}（プレイヤー名：{display_name}）です。"
                 "以下はこれまでの発言履歴です：\n"
@@ -232,6 +253,20 @@ class Agent:
 
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
+        # 整理当天发言
+        talks = [f"{t.agent}: {t.text}" for t in self.talk_history if t.text not in ("OVER", "SKIP")]
+        talk_history = "\n".join(talks)
+        if talk_history:
+            prompt = (
+                "以下はAI人狼ゲームの1日の全発言履歴です。\n"
+                "重要な出来事・主な議論ポイント・怪しい発言・CO状況などを日本語で簡潔にまとめてください。\n"
+                f"{talk_history}\n"
+                "まとめ："
+            )
+            summary = call_deepseek_llm(prompt, temperature=0.3, max_tokens=128)
+            self.prev_day_summary = summary
+        else:
+            self.prev_day_summary = ""
 
     def divine(self) -> str:
         """占いリクエストに対する応答を返す."""
