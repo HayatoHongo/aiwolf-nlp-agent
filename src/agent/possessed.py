@@ -296,10 +296,9 @@ class Possessed(Agent):
         )
         # エージェント名を整数IDに安全に変換
         vote_target_id = self.agent_name_to_id(vote_target)
-        import json
 
-        data = {"agentIdx": vote_target_id}
-        return json.dumps(data, separators=(",", ":"))
+        # プロトコルに従ってAgent[XX]形式で返す
+        return f"Agent[{vote_target_id:02d}]"
 
     def parse_info(self, receive: str) -> None:
         """サーバーからの情報をパースし履歴に追加する."""

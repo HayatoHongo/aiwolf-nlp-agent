@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from aiwolf_nlp_common.packet import Role
+from aiwolf_nlp_common.packet import Role, Request
 
 from agent.agent import Agent
 from collections import deque
@@ -381,10 +381,9 @@ class Werewolf(Agent):
                 self.vote_candidate = tmp_vote_candidate
             if self.vote_candidate is not None:
                 vote_target_id = self.agent_name_to_id(self.vote_candidate)
-                import json
 
-                data = {"agentIdx": vote_target_id}
-                return json.dumps(data, separators=(",", ":"))
+                # プロトコルに従ってAgent[XX]形式で返す
+                return f"Agent[{vote_target_id:02d}]"
 
         self.estimate_possessed()
         self.estimate_seer()
@@ -476,10 +475,9 @@ class Werewolf(Agent):
 
         # エージェント名を整数IDに安全に変換
         vote_target_id = self.agent_name_to_id(vote_target)
-        import json
 
-        data = {"agentIdx": vote_target_id}
-        return json.dumps(data, separators=(",", ":"))
+        # プロトコルに従ってAgent[XX]形式で返す
+        return f"Agent[{vote_target_id:02d}]"
 
     def whisper(self) -> str:
         return super().whisper()
@@ -625,15 +623,11 @@ class Werewolf(Agent):
                 if remaining_candidates:
                     attack_target_id = remaining_candidates[0]
 
-        print(f"[DEBUG] Werewolf Attack: My ID={my_id}, Target ID={attack_target_id}")
-
-        import json
-
-        data = {"agentIdx": attack_target_id}
-        return json.dumps(data, separators=(",", ":"))
+        # プロトコルに従ってAgent[XX]形式で返す
+        return f"Agent[{attack_target_id:02d}]"
 
     def action(self) -> str:
-        if self.request == "ATTACK":
+        if self.request == Request.ATTACK:
             return self.attack()
         else:
             return super().action()

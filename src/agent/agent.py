@@ -237,7 +237,7 @@ class Agent:
             print(f"[DEBUG] Using fallback ID {self.index}")
 
         # デバッグ用マッピング表示
-        self.debug_agent_mapping()
+        # self.debug_agent_mapping()  # 無効化して出力を抑制
 
         # 役職もself.infoから取得（可能であれば）
         if (
@@ -432,11 +432,12 @@ class Agent:
                                 )
                             )
                         else:
-                            return_text = (
-                                f"ESTIMATE Agent{self.vote_candidate} WEREWOLF"
-                            )
+                            # エージェント名前を使用
+                            target_name = self.agent_id_to_name(self.vote_candidate)
+                            return_text = f"私は、{target_name}が人狼だと思います。"
                     except Exception:
-                        return_text = f"ESTIMATE Agent{self.vote_candidate} WEREWOLF"
+                        target_name = self.agent_id_to_name(self.vote_candidate)
+                        return_text = f"私は、{target_name}が人狼だと思います。"
                 elif rnd == 1:
                     try:
                         if self.talk_generator:
@@ -444,9 +445,12 @@ class Agent:
                                 ProtocolMean(False, "VOTE", None, self.vote_candidate)
                             )
                         else:
-                            return_text = f"VOTE Agent{self.vote_candidate}"
+                            # エージェント名前を使用
+                            target_name = self.agent_id_to_name(self.vote_candidate)
+                            return_text = f"今日は{target_name}に投票しようと思います。"
                     except Exception:
-                        return_text = f"VOTE Agent{self.vote_candidate}"
+                        target_name = self.agent_id_to_name(self.vote_candidate)
+                        return_text = f"今日は{target_name}に投票しようと思います。"
                 elif rnd == 2:
                     try:
                         if self.talk_generator:
@@ -456,11 +460,12 @@ class Agent:
                                 request_target="ANY",
                             )
                         else:
-                            return_text = (
-                                f"REQUEST ANY (VOTE Agent{self.vote_candidate})"
-                            )
+                            # エージェント名前を使用
+                            target_name = self.agent_id_to_name(self.vote_candidate)
+                            return_text = f"{target_name}さんに投票をお願いします。"
                     except Exception:
-                        return_text = f"REQUEST ANY (VOTE Agent{self.vote_candidate})"
+                        target_name = self.agent_id_to_name(self.vote_candidate)
+                        return_text = f"{target_name}さんに投票をお願いします。"
                 else:
                     # 一般的な推理発言（安定性重視）
                     return_text = "みなさんの発言を注意深く聞いています。"
@@ -487,9 +492,9 @@ class Agent:
                                 )
                             )
                         else:
-                            return_text = f"CO Agent{self.index} POSSESSED"
+                            return_text = f"私は狂人カミングアウトをします。"
                     except Exception:
-                        return_text = f"CO Agent{self.index} POSSESSED"
+                        return_text = f"私は狂人カミングアウトをします。"
             if 1 <= self.turn <= 6:
                 rnd = random.randint(0, 3)
                 if rnd == 0:
@@ -505,11 +510,12 @@ class Agent:
                                 )
                             )
                         else:
-                            return_text = (
-                                f"ESTIMATE Agent{self.vote_candidate} WEREWOLF"
-                            )
+                            # エージェント名前を使用
+                            target_name = self.agent_id_to_name(self.vote_candidate)
+                            return_text = f"私は、{target_name}が人狼だと思います。"
                     except Exception:
-                        return_text = f"ESTIMATE Agent{self.vote_candidate} WEREWOLF"
+                        target_name = self.agent_id_to_name(self.vote_candidate)
+                        return_text = f"私は、{target_name}が人狼だと思います。"
                 elif rnd == 1:
                     try:
                         if self.talk_generator:
@@ -517,9 +523,12 @@ class Agent:
                                 ProtocolMean(False, "VOTE", None, self.vote_candidate)
                             )
                         else:
-                            return_text = f"VOTE Agent{self.vote_candidate}"
+                            # エージェント名前を使用
+                            target_name = self.agent_id_to_name(self.vote_candidate)
+                            return_text = f"今日は{target_name}に投票します。"
                     except Exception:
-                        return_text = f"VOTE Agent{self.vote_candidate}"
+                        target_name = self.agent_id_to_name(self.vote_candidate)
+                        return_text = f"今日は{target_name}に投票します。"
                 elif rnd == 2:
                     try:
                         if self.talk_generator:
@@ -529,13 +538,12 @@ class Agent:
                                 request_target="ANY",
                             )
                         else:
-                            return_text = (
-                                f"REQUEST ANY (VOTE Agent{self.vote_candidate})"
-                            )
+                            # エージェント名前を使用
+                            target_name = self.agent_id_to_name(self.vote_candidate)
+                            return_text = f"{target_name}さんに投票をお願いします。"
                     except Exception:
-                        return_text = f"REQUEST ANY (VOTE Agent{self.vote_candidate})"
-                    except Exception:
-                        return_text = f"REQUEST ANY (VOTE Agent{self.vote_candidate})"
+                        target_name = self.agent_id_to_name(self.vote_candidate)
+                        return_text = f"{target_name}さんに投票をお願いします。"
                 else:
                     # 2日目以降の推理発言（安定性重視）
                     return_text = "昨日の投票結果を分析しています。"
@@ -589,8 +597,8 @@ class Agent:
 
         print(f"[DEBUG] Vote: My ID={my_id}, Target ID={vote_target_id}")
 
-        data = {"agentIdx": vote_target_id}
-        return json.dumps(data, separators=(",", ":"))
+        # プロトコルに従ってAgent[XX]形式で返す
+        return f"Agent[{vote_target_id:02d}]"
 
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
@@ -608,8 +616,8 @@ class Agent:
 
         print(f"[DEBUG] Divine: My ID={my_id}, Target ID={target_id}")
 
-        data = {"agentIdx": target_id}
-        return json.dumps(data, separators=(",", ":"))
+        # プロトコルに従ってAgent[XX]形式で返す
+        return f"Agent[{target_id:02d}]"
 
     def guard(self) -> str:
         """護衛リクエストに対する応答を返す."""
@@ -624,8 +632,8 @@ class Agent:
 
         print(f"[DEBUG] Guard: My ID={my_id}, Target ID={target_id}")
 
-        data = {"agentIdx": target_id}
-        return json.dumps(data, separators=(",", ":"))
+        # プロトコルに従ってAgent[XX]形式で返す
+        return f"Agent[{target_id:02d}]"
 
     def attack(self) -> str:
         """襲撃リクエストに対する応答を返す."""
@@ -640,8 +648,8 @@ class Agent:
 
         print(f"[DEBUG] Attack: My ID={my_id}, Target ID={target_id}")
 
-        data = {"agentIdx": target_id}
-        return json.dumps(data, separators=(",", ":"))
+        # プロトコルに従ってAgent[XX]形式で返す
+        return f"Agent[{target_id:02d}]"
 
     def finish(self) -> None:
         """ゲーム終了リクエストに対する処理を行う."""
@@ -810,7 +818,8 @@ class Agent:
 
         # 文字列が数字の場合は変換
         if isinstance(agent_name, str) and agent_name.isdigit():
-            return int(agent_name)
+            result = int(agent_name)
+            return result
 
         # self.infoからエージェント名→ID変換を試行
         if (
@@ -820,7 +829,8 @@ class Agent:
         ):
             agent_names = list(self.info.status_map.keys())
             if agent_name in agent_names:
-                return agent_names.index(agent_name) + 1
+                result = agent_names.index(agent_name) + 1
+                return result
 
         # gameInfoからの変換も試行
         if (
@@ -839,7 +849,8 @@ class Agent:
             # エージェント名からIDを推測（例: "Agent_01" -> 1）
             if "Agent_" in agent_name:
                 try:
-                    return int(agent_name.split("_")[-1])
+                    result = int(agent_name.split("_")[-1])
+                    return result
                 except (ValueError, IndexError):
                     pass
 
@@ -858,6 +869,49 @@ class Agent:
                     return agent_id
 
         return 1  # 最終フォールバック
+
+    def agent_id_to_name(self, agent_id) -> str:
+        """エージェントIDをエージェント名に変換する."""
+        if agent_id is None:
+            return "不明なエージェント"
+
+        # 既に文字列の場合はそのまま返す
+        if isinstance(agent_id, str):
+            return agent_id
+
+        # self.infoからID→名前変換を試行
+        if (
+            self.info
+            and hasattr(self.info, "status_map")
+            and isinstance(self.info.status_map, dict)
+        ):
+            agent_names = list(self.info.status_map.keys())
+            if 1 <= agent_id <= len(agent_names):
+                return agent_names[agent_id - 1]
+
+        # フォールバック: 自然な日本の名前を使用
+        fallback_names = [
+            "アキ",
+            "ミドリ",
+            "ブルー",
+            "イエロー",
+            "レッド",
+            "パープル",
+            "オレンジ",
+            "ピンク",
+            "グレー",
+            "ホワイト",
+            "ブラック",
+            "ゴールド",
+            "シルバー",
+            "ブラウン",
+            "ネイビー",
+        ]
+        if 1 <= agent_id <= len(fallback_names):
+            return fallback_names[agent_id - 1]
+        else:
+            # さらなるフォールバック
+            return f"プレイヤー{agent_id}"
 
     def debug_agent_mapping(self):
         """デバッグ用: エージェント名とIDのマッピングを表示"""
