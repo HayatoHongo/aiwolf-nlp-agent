@@ -70,7 +70,8 @@ def handle_game_session(
             agent = init_agent_from_packet(config, name, packet)
         if not agent:
             raise ValueError(agent, "エージェントが初期化されていません")
-        agent.set_packet(packet)
+        agent.convert_json_for_legacy(packet)
+        agent.get_info()
         req = agent.action()
         agent.agent_logger.packet(agent.request, req)
         if req:

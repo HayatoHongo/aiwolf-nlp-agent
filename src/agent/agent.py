@@ -1,7 +1,7 @@
 """エージェントの基底クラスを定義するモジュール."""
 
 from __future__ import annotations
-
+from aiwolf_nlp_json_converter import AIWolfNLPJsonConverter
 import random
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -151,6 +151,22 @@ class Agent:
             self.whisper_history: list[Talk] = []
         self.agent_logger.logger.debug(packet)
 
+    def convert_json_for_legacy(self, json_str: str) -> dict:
+        """新しいJSON形式を旧エージェント用に変換する."""
+        received_list = AIWolfNLPJsonConverter.get_json_dict(
+            received_str=json_str
+        ).split("}\n{")
+        for index in range(len(received_list)):
+            received_list[index] = received_list[index].rstrip()
+
+            if received_list[index][0] != "{":
+                received_list[index] = "{" + received_list[index]
+
+            if received_list[index][-1] != "}":
+                received_list[index] += "}"
+
+            self.received.append(received_list[index])
+
     def get_alive_agents(self) -> list[str]:
         """生存しているエージェントのリストを取得する."""
         if not self.info:
@@ -160,6 +176,102 @@ class Agent:
     def name(self) -> str:
         """名前リクエストに対する応答を返す."""
         return self.name
+
+    def get_info(self):
+        data = json.loads(self.received.pop(0))
+        if data["gameInfo"] is not None:
+            self.gameInfo = GameInfo(**data["gameInfo"])
+        if data["gameSetting"] is not None:
+            self.gameSetting = GameSetting(**data["gameSetting"])
+        self.request = data["request"]
+        self.talkHistory: list[TalkHist] = data["talkHistory"]
+        if self.talkHistory is None:
+            return
+        self.protocolHistory: list[ProtocolMean] = []
+        for talk in self.talkHistory:
+            self.protocolHistory.extend(
+                convert_to_protocol(talk["text"], str(talk["agent"]), self.index)
+            )
+
+        self.whisperHistory = data["whisperHistory"]
+        self.score_matrix.update(self.gameInfo)
+        for tk, tkz in zip(self.talkHistory, self.protocolHistory):
+            day: int = tk["day"]
+            turn: int = tk["turn"]
+            talker: str = tk["agent"]
+            self.talk_list_all.append(tk)
+            self.protocol_list_all.append(tkz)
+            if talker == self.index:  # Skip my talk.
+                continue
+            # 内容に応じて更新していく
+            content: ProtocolMean = copy.deepcopy(tkz)
+            print("content:", content)
+            if content.action == Topic.CO:
+                if content.role in self.gameInfo.existingRoleList:  # Role.UNC 対策
+                    self.comingout_map[talker] = content.role
+                    self.score_matrix.talk_co(
+                        self.gameInfo, self.gameSetting, talker, content.role, day, turn
+                    )
+                print("CO:\t", talker, content.role)
+            elif content.action == Topic.DIVINED:
+                self.score_matrix.talk_divined(
+                    self.gameInfo,
+                    self.comingout_map,
+                    talker,
+                    content.talk_object,
+                    content.team,
+                    day,
+                    turn,
+                    self.divination_reports,
+                )
+                self.divination_reports.append(
+                    Judge(talker, day, content.talk_object, content.team)
+                )
+                print("DIVINED:\t", talker, content.talk_object, content.team)
+            elif content.action == Topic.VOTE:
+                # 古い投票先が上書きされる前にスコアを更新 (2回以上投票宣言している場合に信頼度を下げるため)
+                self.score_matrix.talk_will_vote(
+                    self.gameInfo,
+                    self.gameSetting,
+                    talker,
+                    content.talk_object,
+                    day,
+                    turn,
+                    self.will_vote_reports,
+                )
+                # 投票先を保存
+                self.will_vote_reports[talker] = content.talk_object
+            elif content.action == Topic.ESTIMATE:
+                if content.role == Role.WEREWOLF:
+                    self.score_matrix.talk_will_vote(
+                        self.gameInfo,
+                        self.gameSetting,
+                        talker,
+                        content.talk_object,
+                        day,
+                        turn,
+                        self.will_vote_reports,
+                    )
+                    self.will_vote_reports[talker] = content.talk_object
+                elif content.role == Role.VILLAGER:
+                    self.score_matrix.talk_estimate(
+                        self.gameInfo,
+                        self.gameSetting,
+                        talker,
+                        content.talk_object,
+                        content.role,
+                        day,
+                        turn,
+                    )
+            elif content.action == Topic.SUSPECT:
+                self.score_matrix.talk_suspect(
+                    self.gameInfo,
+                    self.gameSetting,
+                    talker,
+                    content.talk_object,
+                    day,
+                    turn,
+                )
 
     def initialize(self) -> None:
         self.index = str(self.gameInfo.agent)
