@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aiwolf_nlp_common.status import Status
+from aiwolf_nlp_common_legacy.status import Status
 
 
 class AgentStatus:

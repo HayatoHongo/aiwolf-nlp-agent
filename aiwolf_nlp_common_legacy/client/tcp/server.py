@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import socket
 
-from aiwolf_nlp_common.client.client import Client
+from aiwolf_nlp_common_legacy.client.client import Client
 
 
 class TCPServer(Client):

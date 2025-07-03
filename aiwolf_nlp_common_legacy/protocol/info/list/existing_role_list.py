@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aiwolf_nlp_common.role import RoleInfo
+from aiwolf_nlp_common_legacy.role import RoleInfo
 
 
 class ExistingRoleList(list):

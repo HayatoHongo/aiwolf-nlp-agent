@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import paramiko
 
-from aiwolf_nlp_common.client import Client
+from aiwolf_nlp_common_legacy.client import Client
 
 if TYPE_CHECKING:
     from pathlib import Path

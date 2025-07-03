@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aiwolf_nlp_common.protocol import Packet
+from aiwolf_nlp_common_legacy.protocol import Packet
 from .talkHistory import talkHistoryConverter
 
 

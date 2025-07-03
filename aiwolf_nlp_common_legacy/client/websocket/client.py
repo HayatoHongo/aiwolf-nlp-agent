@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import websocket
 
-from aiwolf_nlp_common.client import Client
+from aiwolf_nlp_common_legacy.client import Client
 
 
 class WebSocketClient(Client):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aiwolf_nlp_common.protocol import Packet
-from aiwolf_nlp_common.protocol.setting.map import RoleNumInfo, RoleNumMap
+from aiwolf_nlp_common_legacy.protocol import Packet
+from aiwolf_nlp_common_legacy.protocol.setting.map import RoleNumInfo, RoleNumMap
 
 
 class gameSettingConverter:
