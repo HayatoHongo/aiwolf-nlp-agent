@@ -151,9 +151,7 @@ class Agent:
 
     def convert_json_for_legacy(self, json_str: str) -> dict:
         """新しいJSON形式を旧エージェント用に変換する."""
-        received_list = AIWolfNLPJsonConverter.get_json_dict(
-            received_str=json_str
-        ).split("}\n{")
+        received_list = AIWolfNLPJsonConverter.get_json_dict(received_str=json_str)
         for index in range(len(received_list)):
             received_list[index] = received_list[index].rstrip()
 
