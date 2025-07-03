@@ -14,6 +14,31 @@ from utils.stoppable_thread import StoppableThread
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+import configparser
+import copy
+import json
+import random
+from collections import defaultdict
+from typing import DefaultDict
+
+from cls import (
+    DivineResult,
+    GameInfo,
+    GameSetting,
+    Judge,
+    ProtocolMean,
+    Role,
+    Status,
+    TalkHist,
+    Topic,
+    VoteHist,
+)
+from lib import TalkGenerator
+from lib.AIWolf import AIWolfCommand, RolePredictor, ScoreMatrix
+from lib.ConvertToProtocol import convert_to_protocol
+
+TalkGenerator = TalkGenerator.TalkGenerator
+
 
 class Agent:
     """エージェントの基底クラス."""
@@ -49,7 +74,10 @@ class Agent:
     ) -> None:
         """エージェントの初期化を行う."""
         self.config = config
-        self.agent_name = name
+        self.name = name
+        self.received = []
+        self.gameContinue = True
+        self.turn = 1
         self.agent_logger = AgentLogger(config, name, game_id)
         self.request: Request | None = None
         self.info: Info | None = None
@@ -131,21 +159,167 @@ class Agent:
 
     def name(self) -> str:
         """名前リクエストに対する応答を返す."""
-        return self.agent_name
+        return self.name
 
     def initialize(self) -> None:
-        """ゲーム開始リクエストに対する初期化処理を行う."""
+        self.index = str(self.gameInfo.agent)
+        self.role = self.gameInfo.roleMap[self.index]
+        self.divination_reports = []
+        self.comingout_map = []
+        self.identification_reports = []
+        self.vote_candidate = None
+        self.talk_list_head = 0
+        self.will_vote_reports = defaultdict(lambda: None)
+        self.talkHistory = []
+        self.protocolHistory = []
+        self.whisperHistory = []
+        self.talk_list_all = []
+        self.protocol_list_all = []
+        self.talk_turn = 0
+        self.role_predictor = None
+        self.N = -1
+        self.M = -1
+        self.agent_idx_0based = -1
+        # フルオープンしたかどうか
+        self.doFO = False
+        # self.all_talk_history = []
+        # self.all_talk_history_protocol = []
+        self.score_matrix = ScoreMatrix(
+            self.gameInfo, self.gameSetting, self.index, self.role
+        )
+        self.role_predictor = RolePredictor(
+            self.gameInfo, self.gameSetting, self, self.score_matrix
+        )
+        self.talk_generator = TalkGenerator(self.name)
 
     def daily_initialize(self) -> None:
-        """昼開始リクエストに対する処理を行う."""
+        self.talk_list_head = 0
+        self.vote_candidate = None
+        self.alive = []
+        self.turn = 1
+        for agent_num in self.gameInfo.statusMap:
+
+            if (self.gameInfo.statusMap[agent_num] == "ALIVE") and (
+                agent_num != self.index
+            ):
+                self.alive.append(int(agent_num))
+        day: int = self.gameInfo.day
+        if day >= 2:
+            vote_list: list[VoteHist] = self.gameInfo.voteList
+            print("vote_list:", self.vote_to_dict(vote_list))
+            # print('will_vote_reports:', self.will_vote_reports_str)
+            for v in vote_list:
+                self.score_matrix.vote(
+                    self.gameInfo, self.gameSetting, v["agent"], v["target"], v["day"]
+                )
+                # va = v.agent
+                # vt = v.target
+                # if va in self.will_vote_reports:
+                #     Util.vote_count[va] += 1
+                #     if vt == self.will_vote_reports[va]:
+                #         Util.vote_match_count[va] += 1
+            # print("vote_count:\t", self.vote_print(Util.vote_count))
+            # print("vote_match_count:\t", self.vote_print(Util.vote_match_count))
+        self.will_vote_reports.clear()
+
+        print("")
+        print("DayStart:\t", self.gameInfo.day)
+        print("生存者数:\t", len(self.alive))
+
+        print("Executed:\t", self.gameInfo.executedAgent)
+        if self.gameInfo.executedAgent == int(self.index):
+            print("---------- 処刑された ----------")
+        # self.gameInfo.last_dead_agent_list は昨夜殺されたエージェントのリスト
+        # (self.gameInfo.executed_agent が昨夜処刑されたエージェント)
+        killed: list[Agent] = self.gameInfo.lastDeadAgentList
+        if len(killed) > 0:
+            self.score_matrix.killed(self.gameInfo, self.gameSetting, killed[0])
+            print("Killed:\t", self.gameInfo.lastDeadAgentList[0])
+            if self.gameInfo.lastDeadAgentList[0] == int(self.index):
+                print("---------- 噛まれた ----------")
+            # 本来複数人殺されることはないが、念のためkilled()は呼び出した上でエラーログを出しておく
+            if len(killed) > 1:
+                print("Killed:\t", *self.gameInfo.lastDeadAgentList)
+        else:
+            print("Killed:\t", None)
+        # 噛まれていない違和感を反映
+        self.score_matrix.Nth_day_start(self.gameInfo, self.gameSetting)
 
     def whisper(self) -> str:
         """囁きリクエストに対する応答を返す."""
         return random.choice(self.comments)  # noqa: S311
 
     def talk(self) -> str:
-        """トークリクエストに対する応答を返す."""
-        return random.choice(self.comments)  # noqa: S311
+        day: int = self.gameInfo.day
+        self.vote_candidate = self.choose_vote_candidate()
+        if day == 1:
+            if self.turn == 1:
+                return_text = self.talk_generator.generate_talk(
+                    ProtocolMean(False, "CO", "ANY", "ANY")
+                )
+            elif 2 <= self.turn <= 8:
+                rnd = random.randint(0, 2)
+                if rnd == 0:
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(
+                            False, "ESTIMATE", None, self.vote_candidate, "WEREWOLF"
+                        )
+                    )
+                elif rnd == 1:
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.vote_candidate)
+                    )
+                else:
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", "ANY", self.vote_candidate),
+                        request=True,
+                        request_target="ANY",
+                    )
+            else:
+                return_text = "Over"
+        elif day >= 2:
+            # 2日目：狂人COを認知→狂人がいるか判定→いる場合、狂人CO
+            agent_possessed: Agent = self.role_predictor.chooseMostLikely(
+                Role.POSSESSED, self.alive, 0.4
+            )
+            if agent_possessed is not None:
+                alive_possessed = (
+                    self.gameInfo.statusMap[agent_possessed] == Status.ALIVE
+                )
+                if self.turn == 1 and alive_possessed:
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "CO", self.index, self.index, "POSSESSED")
+                    )
+
+            if 1 <= self.turn <= 6:
+                rnd = random.randint(0, 2)
+                if rnd == 0:
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(
+                            False, "ESTIMATE", None, self.vote_candidate, "WEREWOLF"
+                        )
+                    )
+                elif rnd == 1:
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.vote_candidate)
+                    )
+                else:
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", "ANY", self.vote_candidate),
+                        request=True,
+                        request_target="ANY",
+                    )
+            else:
+                return_text = "Over"
+        elif day == 0:
+            if self.turn > 1:
+                return_text = "Over"
+            else:
+                return_text = "よろしくお願いします！"
+        else:
+            return_text = "Over"
+        self.turn += 1
+        return return_text
 
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
@@ -158,15 +332,74 @@ class Agent:
         """護衛リクエストに対する応答を返す."""
         return random.choice(self.get_alive_agents())  # noqa: S311
 
+    def choose_vote_candidate(self) -> int:
+        # 投票候補
+        vote_candidates = self.alive
+        # ---------- 5人村 ----------
+        self.vote_candidate = self.role_predictor.chooseMostLikely(
+            Role.WEREWOLF, vote_candidates
+        )
+
+        # ----- 投票ミスを防ぐ -----
+        if self.vote_candidate is None or self.vote_candidate == self.index:
+            print("vote_candidates: None or self.me")
+            self.vote_candidate = self.role_predictor.chooseMostLikely(
+                Role.WEREWOLF, vote_candidates
+            )
+        vote_target = (
+            self.vote_candidate if self.vote_candidate is not None else self.index
+        )
+        return int(vote_target)
+
+    # 同数投票の時に自分の捨て票を変更する：最大投票以外のエージェントに投票している場合、投票先を変更する
+    def changeVote(self, vote_list: list[VoteHist], role: Role, mostlikely=True) -> str:
+        count: DefaultDict[Agent, int] = defaultdict(int)
+        count_num: DefaultDict[str, int] = defaultdict(int)
+        my_target: Agent = None
+        new_target: Agent = None
+        for vote in vote_list:
+            agent = vote["agent"]
+            target = vote["target"]
+            no = str(target)
+            if agent == self.index:
+                my_target = target
+            count[target] += 1
+            count_num[no] += 1
+        print("count_num:\t", count_num)
+        # 最大投票数を取得
+        max_vote = max(count_num.values())
+        max_voted_agents: list[Agent] = []
+        for agent, num in count.items():
+            if num == max_vote and agent != self.index:
+                max_voted_agents.append(agent)
+        max_voted_agents_num = [a for a in max_voted_agents]
+        print("max_voted_agents:\t", max_voted_agents_num)
+        # 最大投票数のエージェントが複数人の場合
+        if max_voted_agents:
+            if mostlikely:
+                new_target = self.role_predictor.chooseMostLikely(
+                    role, max_voted_agents
+                )
+            else:
+                new_target = self.role_predictor.chooseLeastLikely(
+                    role, max_voted_agents
+                )
+        if new_target is None:
+            new_target = my_target
+        print("vote_candidate:\t", my_target, "→", new_target)
+        return new_target if new_target is not None else self.index
+
     def vote(self) -> str:
-        """投票リクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
+        self.vote_candidate = self.choose_vote_candidate()
+        data = {"agentIdx": self.vote_candidate}
+        return json.dumps(data, separators=(",", ":"))
 
     def attack(self) -> str:
         """襲撃リクエストに対する応答を返す."""
         return random.choice(self.get_alive_agents())  # noqa: S311
 
-    def finish(self) -> None:
+    def finish(self) -> str:
+        self.gameContinue = False
         """ゲーム終了リクエストに対する処理を行う."""
 
     @timeout
@@ -196,3 +429,39 @@ class Agent:
             case Request.FINISH:
                 self.finish()
         return None
+
+
+def hand_over(self, new_agent) -> None:
+    # __init__
+    new_agent.name = self.name
+    new_agent.received = self.received
+    new_agent.gameContinue = self.gameContinue
+    new_agent.received = self.received
+    new_agent.turn = self.turn
+    new_agent.vote_candidate = self.vote_candidate
+    new_agent.comingout_map = self.comingout_map
+    new_agent.divination_reports = self.divination_reports
+    new_agent.talk_list_head = self.talk_list_head
+    new_agent.will_vote_reports = self.will_vote_reports
+    new_agent.talkHistory = self.talkHistory
+    new_agent.protocolHistory = self.protocolHistory
+    new_agent.talk_list_all = self.talk_list_all
+    new_agent.protocol_list_all = self.protocol_list_all
+    new_agent.talk_turn = self.talk_turn
+    new_agent.role_predictor = self.role_predictor
+
+    # get_info
+    new_agent.gameInfo = self.gameInfo
+    new_agent.gameSetting = self.gameSetting
+    new_agent.request = self.request
+    new_agent.whisperHistory = self.whisperHistory
+
+    # initialize
+    new_agent.index = self.index
+    new_agent.role = self.role
+    new_agent.score_matrix = self.score_matrix
+    new_agent.role_predictor = self.role_predictor
+    new_agent.talk_generator = self.talk_generator
+
+    # daily_initialize
+    new_agent.turn = self.turn
