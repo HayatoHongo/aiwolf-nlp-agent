@@ -39,20 +39,44 @@ class Setting:
 
     def __init__(self, value: dict | None = None) -> None:
         if value is not None:
-            self.role_num_map = RoleNumMap(value=value["roleNumMap"])
-            self.max_talk = value["maxTalk"]
-            self.max_talk_turn = value["maxTalkTurn"]
-            self.max_whisper = value["maxWhisper"]
-            self.max_whisper_turn = value["maxWhisperTurn"]
-            self.max_skip = value["maxSkip"]
-            self.is_enable_no_attack = value["isEnableNoAttack"]
-            self.is_vote_visible = value["isVoteVisible"]
-            self.is_talk_on_first_day = value["isTalkOnFirstDay"]
-            self.response_timeout = value["responseTimeout"] // 1000
-            self.action_timeout = value["actionTimeout"] // 1000
-            self.max_revote = value["maxRevote"]
-            self.max_attack_revote = value["maxAttackRevote"]
-            self.player_num = value["playerNum"]
+            # 新形式のサーバーデータに対応
+            self.role_num_map = RoleNumMap(value=value.get("role_num_map", {}))
+
+            # Talk設定の取得
+            talk_settings = value.get("talk", {})
+            talk_max_count = talk_settings.get("max_count", {})
+            self.max_talk = talk_max_count.get("per_agent", 5)
+            self.max_talk_turn = talk_max_count.get("per_day", 20)
+            self.max_skip = talk_settings.get("max_skip", 0)
+
+            # Whisper設定の取得
+            whisper_settings = value.get("whisper", {})
+            whisper_max_count = whisper_settings.get("max_count", {})
+            self.max_whisper = whisper_max_count.get("per_agent", 5)
+            self.max_whisper_turn = whisper_max_count.get("per_day", 20)
+
+            # Vote設定の取得
+            vote_settings = value.get("vote", {})
+            self.max_revote = vote_settings.get("max_count", 1)
+
+            # AttackVote設定の取得
+            attack_vote_settings = value.get("attack_vote", {})
+            self.max_attack_revote = attack_vote_settings.get("max_count", 1)
+            self.is_enable_no_attack = attack_vote_settings.get(
+                "allow_no_target", False
+            )
+
+            # Timeout設定の取得
+            timeout_settings = value.get("timeout", {})
+            self.response_timeout = timeout_settings.get("response", 120000) // 1000
+            self.action_timeout = timeout_settings.get("action", 60000) // 1000
+
+            # その他の設定
+            self.player_num = value.get("agent_count", 5)
+            self.is_vote_visible = value.get("vote_visibility", False)
+            self.is_talk_on_first_day = (
+                True  # デフォルト値（新サーバーには対応項目なし）
+            )
 
     def update(self, value: dict | None) -> None:
         self.__init__(value)

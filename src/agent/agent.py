@@ -33,11 +33,9 @@ from cls import (
     Topic,
     VoteHist,
 )
-from lib import TalkGenerator
+from lib.TalkGenerator.TalkGenerator import TalkGenerator
 from lib.AIWolf import AIWolfCommand, RolePredictor, ScoreMatrix
 from lib.ConvertToProtocol import convert_to_protocol
-
-TalkGenerator = TalkGenerator.TalkGenerator
 
 
 class Agent:

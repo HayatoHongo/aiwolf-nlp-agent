@@ -1,11 +1,12 @@
 """人狼のエージェントクラスを定義するモジュール."""
 
+from __future__ import annotations
 import configparser
 import json
 import random
 from collections import deque
 from typing import Deque
-from __future__ import annotations
+
 
 from aiwolf_nlp_common.packet import Role
 

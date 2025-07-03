@@ -62,7 +62,7 @@ def handle_game_session(
     """ゲームセッションの処理."""
     agent: Agent | None = None
     while True:
-        packet = client.receive()
+        packet, raw_json = client.receive()  # 生データも受け取った
         if packet.request == Request.NAME:
             client.send(name)
             continue
@@ -70,7 +70,7 @@ def handle_game_session(
             agent = init_agent_from_packet(config, name, packet)
         if not agent:
             raise ValueError(agent, "エージェントが初期化されていません")
-        agent.convert_json_for_legacy(packet)
+        agent.convert_json_for_legacy(raw_json)
         agent.get_info()
         req = agent.action()
         agent.agent_logger.packet(agent.request, req)

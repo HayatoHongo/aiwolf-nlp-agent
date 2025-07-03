@@ -50,13 +50,17 @@ class TalkList(list[TalkInfo]):
         if value is not None:
             self.extend(
                 TalkInfo(
-                    agent=talk_info["agent"],
+                    agent=str(talk_info["agent"]),  # Agentオブジェクトを文字列に変換
                     day=talk_info["day"],
                     idx=talk_info["idx"],
                     text=talk_info["text"],
-                    turn=talk_info["turn"],
-                    skip=talk_info["skip"],
-                    over=talk_info["over"],
+                    turn=str(talk_info["turn"]),  # intをstrに変換
+                    skip=talk_info.get(
+                        "skip", talk_info["text"] in ["Skip", "ForceSkip"]
+                    ),  # textから判定
+                    over=talk_info.get(
+                        "over", talk_info["text"] == "Over"
+                    ),  # textから判定
                 )
                 for talk_info in value
             )

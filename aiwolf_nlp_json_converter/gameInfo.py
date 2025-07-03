@@ -35,13 +35,13 @@ class gameInfoConverter:
         game_info["executedAgent"] = protocol.info.executed_agent
         game_info["lastDeadAgentList"] = cls.get_lastDeadAgentList(
             attacked_agent=protocol.info.attacked_agent
-        )
+        )  # サーバからのデータとしては存在しない。死者リストから推定している？？
         game_info["roleMap"] = cls.get_role_map(role_map=protocol.info.role_map)
         game_info["statusMap"] = cls.get_status_map(status_map=protocol.info.status_map)
         game_info["voteList"] = cls.get_vote_list_info(
             vote_list=protocol.info.vote_list
         )
-
+        # remain_count,remain_length,remain_skipは変換されていない
         return game_info
 
     @classmethod

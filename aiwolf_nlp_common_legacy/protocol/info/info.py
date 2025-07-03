@@ -41,15 +41,29 @@ class Info:
     def __init__(self, value: dict | None = None) -> None:
         if value is not None:
             self.day = value["day"]
-            self.agent = value["agent"]
-            self.medium_result = MediumResult(value.get("mediumResult"))
-            self.divine_result = DivineResult(value.get("divineResult"))
-            self.executed_agent = value.get("executedAgent")
-            self.attacked_agent = value.get("attackedAgent")
-            self.vote_list = VoteList(value.get("voteList"))
-            self.attack_vote_list = AttackVoteList(value.get("attackVoteList"))
-            self.status_map = StatusMap(value["statusMap"])
-            self.role_map = RoleMap(value["roleMap"])
+            self.agent = (
+                str(value["agent"]) if value["agent"] is not None else ""
+            )  # Agentオブジェクトを文字列に変換
+            self.medium_result = MediumResult(
+                value.get("medium_result")
+            )  # スネークケースに変更
+            self.divine_result = DivineResult(
+                value.get("divine_result")
+            )  # スネークケースに変更
+
+            # executed_agent と attacked_agent は Agent オブジェクトなので文字列に変換
+            executed = value.get("executed_agent")
+            self.executed_agent = str(executed) if executed is not None else None
+
+            attacked = value.get("attacked_agent")
+            self.attacked_agent = str(attacked) if attacked is not None else None
+
+            self.vote_list = VoteList(value.get("vote_list"))  # スネークケースに変更
+            self.attack_vote_list = AttackVoteList(
+                value.get("attack_vote_list")
+            )  # スネークケースに変更
+            self.status_map = StatusMap(value["status_map"])  # スネークケースに変更
+            self.role_map = RoleMap(value["role_map"])  # スネークケースに変更
 
     def update(self, value: dict | None) -> None:
         self.__init__(value)
