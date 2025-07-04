@@ -26,6 +26,7 @@ class Packet:
         )
 
     def __init__(self, value: dict) -> None:
+        print("[DEBUG] Packet __init__ received value:", value)
         self.request = value["request"]
         if value.get("info") is not None:
             self.info = Info(value=value.get("info"))
@@ -48,6 +49,7 @@ class Packet:
         self,
         value: dict,
     ) -> None:
+        print("[DEBUG] Packet update received value:", value)
         self.request = value["request"]
         if value.get("info") is not None:
             if self.info is None:

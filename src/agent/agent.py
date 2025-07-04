@@ -133,22 +133,6 @@ class Agent:
 
         return _wrapper
 
-    def set_packet(self, packet: Packet) -> None:
-        """パケット情報をセットする."""
-        self.request = packet.request
-        if packet.info:
-            self.info = packet.info
-        if packet.setting:
-            self.setting = packet.setting
-        if packet.talk_history:
-            self.talk_history.extend(packet.talk_history)
-        if packet.whisper_history:
-            self.whisper_history.extend(packet.whisper_history)
-        if self.request == Request.INITIALIZE:
-            self.talk_history: list[Talk] = []
-            self.whisper_history: list[Talk] = []
-        self.agent_logger.logger.debug(packet)
-
     def convert_json_for_legacy(self, json_str: str) -> dict:
         """新しいJSON形式を旧エージェント用に変換する."""
         try:
@@ -274,7 +258,7 @@ class Agent:
         self.index = str(self.gameInfo.agent)
         self.role = self.gameInfo.roleMap[self.index]
         self.divination_reports = []
-        self.comingout_map = []
+        self.comingout_map = defaultdict(lambda: None)  # 修正: dict型で初期化
         self.identification_reports = []
         self.vote_candidate = None
         self.talk_list_head = 0
@@ -300,14 +284,13 @@ class Agent:
             self.gameInfo, self.gameSetting, self, self.score_matrix
         )
         self.talk_generator = TalkGenerator(self.name)
+        self.vote_list = []  # 最新の投票リストを保持
 
     def daily_initialize(self) -> None:
         self.talk_list_head = 0
         self.vote_candidate = None
         self.alive = []
-        self.turn = 1
         for agent_num in self.gameInfo.statusMap:
-
             if (self.gameInfo.statusMap[agent_num] == "ALIVE") and (
                 agent_num != self.index
             ):
@@ -315,44 +298,35 @@ class Agent:
         day: int = self.gameInfo.day
         if day >= 2:
             vote_list: list[VoteHist] = self.gameInfo.voteList
-            print("vote_list:", [(v.agent, v.target, v.day) for v in vote_list])
-            # print('will_vote_reports:', self.will_vote_reports_str)
-            for v in vote_list:
+            self.vote_list = [
+                VoteHist(str(v.agent), str(v.target), v.day) for v in vote_list
+            ]  # agent/targetをstrで統一
+            print(
+                "[DEBUG] vote_list:",
+                [(v.agent, v.target, v.day) for v in self.vote_list],
+            )
+            for v in self.vote_list:
                 self.score_matrix.vote(
                     self.gameInfo, self.gameSetting, v.agent, v.target, v.day
                 )
-                # va = v.agent
-                # vt = v.target
-                # if va in self.will_vote_reports:
-                #     Util.vote_count[va] += 1
-                #     if vt == self.will_vote_reports[va]:
-                #         Util.vote_match_count[va] += 1
-            # print("vote_count:\t", self.vote_print(Util.vote_count))
-            # print("vote_match_count:\t", self.vote_print(Util.vote_match_count))
         self.will_vote_reports.clear()
-
-        # print("")
-        # print("DayStart:\t", self.gameInfo.day)
-        # print("生存者数:\t", len(self.alive))
-
-        # print("Executed:\t", self.gameInfo.executedAgent)
-        # if self.gameInfo.executedAgent == int(self.index):
-        #     print("---------- 処刑された ----------")
-        # self.gameInfo.last_dead_agent_list は昨夜殺されたエージェントのリスト
-        # (self.gameInfo.executed_agent が昨夜処刑されたエージェント)
         killed: list[Agent] = self.gameInfo.lastDeadAgentList
         if len(killed) > 0:
-            self.score_matrix.killed(self.gameInfo, self.gameSetting, killed[0])
+            self.score_matrix.killed(self.gameInfo, self.gameSetting, str(killed[0]))
             print("Killed:\t", self.gameInfo.lastDeadAgentList[0])
-            # if self.gameInfo.lastDeadAgentList[0] == int(self.index):
-            #     print("---------- 噛まれた ----------")
-            # # 本来複数人殺されることはないが、念のためkilled()は呼び出した上でエラーログを出しておく
             if len(killed) > 1:
                 print("Killed:\t", *self.gameInfo.lastDeadAgentList)
         else:
             print("Killed:\t", None)
-        # 噛まれていない違和感を反映
         self.score_matrix.Nth_day_start(self.gameInfo, self.gameSetting)
+        # role_predictorの状態を出力
+        if hasattr(self, "role_predictor") and self.role_predictor is not None:
+            try:
+                print(
+                    f"[DEBUG] role_predictor.prob_all: {getattr(self.role_predictor, 'prob_all', None)}"
+                )
+            except Exception as e:
+                print(f"[DEBUG] role_predictor.prob_all: error: {e}")
 
     def whisper(self) -> str:
         """囁きリクエストに対する応答を返す."""
@@ -361,6 +335,16 @@ class Agent:
     def talk(self) -> str:
         day: int = self.gameInfo.day
         self.vote_candidate = self.choose_vote_candidate()
+        print(f"[DEBUG] talk: vote_candidate={self.vote_candidate}")
+        print(f"[DEBUG] talk: will_vote_reports={dict(self.will_vote_reports)}")
+        if hasattr(self, "role_predictor") and self.role_predictor is not None:
+            try:
+                print(
+                    f"[DEBUG] talk: role_predictor.prob_all={getattr(self.role_predictor, 'prob_all', None)}"
+                )
+            except Exception as e:
+                print(f"[DEBUG] talk: role_predictor.prob_all: error: {e}")
+        # ...existing code...
         if day == 1:
             if self.turn == 1:
                 return_text = self.talk_generator.generate_talk(
@@ -433,14 +417,6 @@ class Agent:
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
 
-    def divine(self) -> str:
-        """占いリクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
-
-    def guard(self) -> str:
-        """護衛リクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
-
     def choose_vote_candidate(self) -> str:
         # 投票候補
         vote_candidates = self.alive
@@ -502,13 +478,20 @@ class Agent:
         self.vote_candidate = self.choose_vote_candidate()
         return self.vote_candidate
 
-    def attack(self) -> str:
-        """襲撃リクエストに対する応答を返す."""
-        return random.choice(self.get_alive_agents())  # noqa: S311
-
     def finish(self) -> str:
         self.gameContinue = False
         """ゲーム終了リクエストに対する処理を行う."""
+
+    def divine(self) -> str:
+        """占いリクエストに対する応答を返す."""
+        return random.choice(self.get_alive_agents())  # noqa: S311
+
+    def guard(self) -> str:
+        """護衛リクエストに対する応答を返す."""
+        return random.choice(self.get_alive_agents())  # noqa: S311
+
+    def attack(self) -> str:
+        """襲撃リクエストに対する応答を返す（サブクラスでオーバーライドする）."""
 
     @timeout
     def action(self) -> str | None:  # noqa: C901, PLR0911

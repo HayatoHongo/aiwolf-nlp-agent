@@ -25,7 +25,7 @@ from cls.Species import Species
 class _Judge(TypedDict):
     agent: str
     day: int
-    target: int
+    target: str
     result: str
 
 

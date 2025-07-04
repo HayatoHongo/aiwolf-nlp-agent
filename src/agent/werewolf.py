@@ -8,7 +8,7 @@ from collections import deque
 from typing import Deque
 
 
-from aiwolf_nlp_common.packet import Role
+from aiwolf_nlp_common.packet import Role as PacketRole
 
 from agent.agent import Agent
 from cls import Judge, ProtocolMean, Role, Species
@@ -22,13 +22,14 @@ class Werewolf(Agent):
         config: dict,
         name: str,
         game_id: str,
-        role: Role,  # noqa: ARG002
+        role: PacketRole,  # noqa: ARG002
     ) -> None:
         """人狼のエージェントを初期化する."""
-        super().__init__(config, name, game_id, Role.WEREWOLF)
+        super().__init__(config, name, game_id, PacketRole.WEREWOLF)
 
     def initialize(self) -> None:
         super().initialize()
+        self.turn = 1
         self.werewolves = []
         self.my_judge_queue = deque()
         # ---------- 5人村15人村共通 ----------
@@ -85,7 +86,7 @@ class Werewolf(Agent):
         return Judge(self.index, self.gameInfo.day, judge_candidate, result)
 
     def estimate_possessed(self) -> None:
-        th: float = 0.5
+        th: float = 0.01
         # self.agent_possessed = self.role_predictor.chooseMostLikely(Role.POSSESSED, self.get_others(self.gameInfo.agent_list), threshold=0.9)
         self.agent_possessed, P_prob = self.role_predictor.chooseMostLikely(
             Role.POSSESSED,
@@ -93,7 +94,11 @@ class Werewolf(Agent):
             threshold=th,
             returns_prob=True,
         )
-        print("agent_possessed, P_prob:\t", self.agent_possessed, P_prob)
+        print(
+            "agent_possessed, P_prob:\t",
+            self.agent_possessed,
+            P_prob,
+        )
         self.alive_possessed = False
         if self.agent_possessed is not None:
             self.alive_possessed = self.agent_possessed in self.alive
@@ -206,7 +211,9 @@ class Werewolf(Agent):
             # 村人と揃える
             if self.turn == 1:
                 return_text = self.talk_generator.generate_talk(
-                    ProtocolMean(False, "CO", "ANY", None, "ANY"),
+                    ProtocolMean(
+                        False, "CO", "ANY", None, "ANY"
+                    ),  # Noneが１つ余計だったことでprotcolmeanでfirst_translateの処理が入りバグっていた。
                     request=True,
                     request_target="ANY",
                 )
@@ -411,7 +418,7 @@ class Werewolf(Agent):
         print("襲撃スコア:\t:", agent_list, ret_agent, mx_score)
         return ret_agent
 
-    def attack(self):
+    def attack(self) -> str:
         self.estimate_possessed()
         self.estimate_seer()
         # alive_werewolf_cnt = len(self.get_alive(self.allies))
@@ -431,11 +438,27 @@ class Werewolf(Agent):
         # print("latest_vote_list:\t", self.vote_to_dict(latest_vote_list))
         # print("latest_vote_cnt:\t", self.vote_cnt(latest_vote_list))
         # 脅威：人狼に投票したエージェント
-        self.threat = [
-            v.agent
-            for v in latest_vote_list
-            if v.target in self.allies and v.agent in attack_vote_candidates
-        ]
+        try:
+            print(f"[DEBUG] latest_vote_list type: {type(latest_vote_list)}")
+            print(f"[DEBUG] latest_vote_list: {latest_vote_list}")
+            if latest_vote_list:
+                print(f"[DEBUG] first vote element type: {type(latest_vote_list[0])}")
+                print(f"[DEBUG] first vote element: {latest_vote_list[0]}")
+            self.threat = [
+                v.agent
+                for v in latest_vote_list
+                if hasattr(v, "target")
+                and hasattr(v, "agent")
+                and v.target in self.allies
+                and v.agent in attack_vote_candidates
+            ]
+        except Exception as e:
+            print(f"[ERROR] threat calculation error: {e}")
+            print(f"[ERROR] error type: {type(e)}")
+            import traceback
+
+            traceback.print_exc()
+            self.threat = []
         # print("脅威:\t", self.self.threat)
         # print("alive_comingout_map:\t", self.alive_comingout_map_str)
         # ---------- 5人村 ----------
@@ -456,22 +479,60 @@ class Werewolf(Agent):
             ]
         # 脅威噛み
         # 対象：最も村人っぽいエージェント＋勝率を考慮する
-        if self.threat:
-            self.attack_vote_candidate = self.role_predictor.chooseStrongLikely(
-                Role.VILLAGER, self.threat, coef=3.0
+        try:
+            print(f"[DEBUG] self.threat: {self.threat}")
+            print(f"[DEBUG] attack_vote_candidates: {attack_vote_candidates}")
+
+            if self.threat:
+                print(f"[DEBUG] Calling chooseStrongLikely with threat list")
+                self.attack_vote_candidate = self.role_predictor.chooseStrongLikely(
+                    Role.VILLAGER, self.threat, coef=3.0
+                )
+                print(
+                    f"[DEBUG] chooseStrongLikely (threat) returned: {self.attack_vote_candidate}"
+                )
+            else:
+                print(f"[DEBUG] Calling chooseStrongLikely with attack_vote_candidates")
+                self.attack_vote_candidate = self.role_predictor.chooseStrongLikely(
+                    Role.VILLAGER, attack_vote_candidates, coef=3.0
+                )
+                print(
+                    f"[DEBUG] chooseStrongLikely returned: {self.attack_vote_candidate}"
+                )
+
+            print(
+                f"[DEBUG] attack_vote_candidate type: {type(self.attack_vote_candidate)}"
             )
-        else:
-            self.attack_vote_candidate = self.role_predictor.chooseStrongLikely(
-                Role.VILLAGER, attack_vote_candidates, coef=3.0
+
+            # 狂人っぽい場合、襲撃対象を変更する
+            print(
+                f"[DEBUG] Calling getMostLikelyRole with: {self.attack_vote_candidate}"
             )
-        # self.attack_vote_candidate = self.role_predictor.chooseMostLikely(Role.VILLAGER, attack_vote_candidates)
-        # 狂人っぽい場合、襲撃対象を変更する
-        if (
-            self.role_predictor.getMostLikelyRole(self.attack_vote_candidate)
-            == Role.POSSESSED
-        ):
-            self.attack_vote_candidate = self.role_predictor.chooseLeastLikely(
-                Role.POSSESSED, attack_vote_candidates
+            most_likely_role = self.role_predictor.getMostLikelyRole(
+                self.attack_vote_candidate
+            )
+            print(
+                f"[DEBUG] getMostLikelyRole returned: {most_likely_role}, type: {type(most_likely_role)}"
+            )
+
+            if most_likely_role == Role.POSSESSED:
+                print(f"[DEBUG] Calling chooseLeastLikely for POSSESSED role")
+                self.attack_vote_candidate = self.role_predictor.chooseLeastLikely(
+                    Role.POSSESSED, attack_vote_candidates
+                )
+                print(
+                    f"[DEBUG] chooseLeastLikely returned: {self.attack_vote_candidate}"
+                )
+
+        except Exception as e:
+            print(f"[ERROR] role_predictor method call error: {e}")
+            print(f"[ERROR] error type: {type(e)}")
+            import traceback
+
+            traceback.print_exc()
+            # フォールバック値を設定
+            self.attack_vote_candidate = (
+                attack_vote_candidates[0] if attack_vote_candidates else self.index
             )
 
         print(f"襲撃対象:\t{self.attack_vote_candidate}")
