@@ -7,7 +7,6 @@ from .Role import Role
 class GameSetting:
     enableNoAttack: bool
     enableNoExecution: bool
-    enableRoleRequest: bool
     maxAttackRevote: int
     maxRevote: int
     maxSkip: int
@@ -16,11 +15,13 @@ class GameSetting:
     maxWhisper: int
     maxWhisperTurn: int
     playerNum: int
-    randomSeed: int
-    roleNumMap: dict[Role: int]
+    roleNumMap: dict[Role:int]
     talkOnFirstDay: bool
-    timeLimit: int
-    validateUtterance: bool
-    votableInFirstDay: bool
     voteVisible: bool
-    whisperBeforeRevote: bool
+
+    enableRoleRequest: bool = False
+    randomSeed: int = 0
+    timeLimit: int = 0
+    validateUtterance: bool = False
+    votableInFirstDay: bool = False
+    whisperBeforeRevote: bool = False

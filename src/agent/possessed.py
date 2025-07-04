@@ -122,7 +122,7 @@ class Possessed(Agent):
         if day >= 2:
             vote_list = self.gameInfo.voteList
             print("----- day_start -----")
-            print("vote_list:\t", self.vote_to_dict(vote_list))
+            print("vote_list:\t", [(v.agent, v.target, v.day) for v in vote_list])
             # print("vote_cnt:\t", self.vote_cnt(vote_list))
 
         self.new_target = self.role_predictor.chooseMostLikely(
@@ -305,5 +305,4 @@ class Possessed(Agent):
         vote_target = (
             self.vote_candidate if self.vote_candidate is not None else self.index
         )
-        data = {"agentIdx": int(vote_target)}
-        return json.dumps(data, separators=(",", ":"))
+        return vote_target

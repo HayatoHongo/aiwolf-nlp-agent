@@ -151,17 +151,18 @@ class Agent:
 
     def convert_json_for_legacy(self, json_str: str) -> dict:
         """新しいJSON形式を旧エージェント用に変換する."""
-        received_list = AIWolfNLPJsonConverter.get_json_dict(received_str=json_str)
-        for index in range(len(received_list)):
-            received_list[index] = received_list[index].rstrip()
+        try:
+            # AIWolfNLPJsonConverterから辞書を取得
+            converted_dict = AIWolfNLPJsonConverter.get_json_dict(received_str=json_str)
 
-            if received_list[index][0] != "{":
-                received_list[index] = "{" + received_list[index]
+            # 辞書をJSON文字列に変換してreceivedリストに追加
+            json_string = json.dumps(converted_dict)
+            self.received.append(json_string)
 
-            if received_list[index][-1] != "}":
-                received_list[index] += "}"
-
-            self.received.append(received_list[index])
+            return converted_dict
+        except Exception as e:
+            self.agent_logger.logger.error(f"JSON変換エラー: {e}")
+            return {}
 
     def get_alive_agents(self) -> list[str]:
         """生存しているエージェントのリストを取得する."""
@@ -310,15 +311,15 @@ class Agent:
             if (self.gameInfo.statusMap[agent_num] == "ALIVE") and (
                 agent_num != self.index
             ):
-                self.alive.append(int(agent_num))
+                self.alive.append(agent_num)
         day: int = self.gameInfo.day
         if day >= 2:
             vote_list: list[VoteHist] = self.gameInfo.voteList
-            print("vote_list:", self.vote_to_dict(vote_list))
+            print("vote_list:", [(v.agent, v.target, v.day) for v in vote_list])
             # print('will_vote_reports:', self.will_vote_reports_str)
             for v in vote_list:
                 self.score_matrix.vote(
-                    self.gameInfo, self.gameSetting, v["agent"], v["target"], v["day"]
+                    self.gameInfo, self.gameSetting, v.agent, v.target, v.day
                 )
                 # va = v.agent
                 # vt = v.target
@@ -330,22 +331,22 @@ class Agent:
             # print("vote_match_count:\t", self.vote_print(Util.vote_match_count))
         self.will_vote_reports.clear()
 
-        print("")
-        print("DayStart:\t", self.gameInfo.day)
-        print("生存者数:\t", len(self.alive))
+        # print("")
+        # print("DayStart:\t", self.gameInfo.day)
+        # print("生存者数:\t", len(self.alive))
 
-        print("Executed:\t", self.gameInfo.executedAgent)
-        if self.gameInfo.executedAgent == int(self.index):
-            print("---------- 処刑された ----------")
+        # print("Executed:\t", self.gameInfo.executedAgent)
+        # if self.gameInfo.executedAgent == int(self.index):
+        #     print("---------- 処刑された ----------")
         # self.gameInfo.last_dead_agent_list は昨夜殺されたエージェントのリスト
         # (self.gameInfo.executed_agent が昨夜処刑されたエージェント)
         killed: list[Agent] = self.gameInfo.lastDeadAgentList
         if len(killed) > 0:
             self.score_matrix.killed(self.gameInfo, self.gameSetting, killed[0])
             print("Killed:\t", self.gameInfo.lastDeadAgentList[0])
-            if self.gameInfo.lastDeadAgentList[0] == int(self.index):
-                print("---------- 噛まれた ----------")
-            # 本来複数人殺されることはないが、念のためkilled()は呼び出した上でエラーログを出しておく
+            # if self.gameInfo.lastDeadAgentList[0] == int(self.index):
+            #     print("---------- 噛まれた ----------")
+            # # 本来複数人殺されることはないが、念のためkilled()は呼び出した上でエラーログを出しておく
             if len(killed) > 1:
                 print("Killed:\t", *self.gameInfo.lastDeadAgentList)
         else:
@@ -440,7 +441,7 @@ class Agent:
         """護衛リクエストに対する応答を返す."""
         return random.choice(self.get_alive_agents())  # noqa: S311
 
-    def choose_vote_candidate(self) -> int:
+    def choose_vote_candidate(self) -> str:
         # 投票候補
         vote_candidates = self.alive
         # ---------- 5人村 ----------
@@ -457,7 +458,7 @@ class Agent:
         vote_target = (
             self.vote_candidate if self.vote_candidate is not None else self.index
         )
-        return int(vote_target)
+        return vote_target
 
     # 同数投票の時に自分の捨て票を変更する：最大投票以外のエージェントに投票している場合、投票先を変更する
     def changeVote(self, vote_list: list[VoteHist], role: Role, mostlikely=True) -> str:
@@ -466,8 +467,8 @@ class Agent:
         my_target: Agent = None
         new_target: Agent = None
         for vote in vote_list:
-            agent = vote["agent"]
-            target = vote["target"]
+            agent = vote.agent
+            target = vote.target
             no = str(target)
             if agent == self.index:
                 my_target = target
@@ -499,8 +500,7 @@ class Agent:
 
     def vote(self) -> str:
         self.vote_candidate = self.choose_vote_candidate()
-        data = {"agentIdx": self.vote_candidate}
-        return json.dumps(data, separators=(",", ":"))
+        return self.vote_candidate
 
     def attack(self) -> str:
         """襲撃リクエストに対する応答を返す."""

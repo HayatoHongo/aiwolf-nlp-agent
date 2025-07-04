@@ -2,20 +2,20 @@ from typing import Literal
 
 
 class DivineResult:
-    agent: int
+    agent: str
     day: int
-    target: int
+    target: str
     result: str
 
 
 class VoteHist:
-    agent: int
+    agent: str
     day: int
-    target: int
+    target: str
 
 
 class TalkHist:
-    agent: int
+    agent: str
     day: int
     idx: int
     text: str

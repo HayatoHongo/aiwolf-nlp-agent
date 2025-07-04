@@ -265,8 +265,7 @@ class Seer(Agent):
         vote_target = (
             self.vote_candidate if self.vote_candidate is not None else self.index
         )
-        data = {"agentIdx": int(vote_target)}
-        return json.dumps(data, separators=(",", ":"))
+        return vote_target
 
     def divine(self) -> str:
         # game: int = Util.game_count
@@ -303,5 +302,4 @@ class Seer(Agent):
         # Util.debug_print("alive_comingout_map:\t", self.alive_comingout_map_str)
         print(f"占い対象：{divine_candidate}")
         divine_target = divine_candidate if divine_candidate is not None else self.index
-        data = {"agentIdx": int(divine_target)}
-        return json.dumps(data, separators=(",", ":"))
+        return divine_target

@@ -29,8 +29,8 @@ class Werewolf(Agent):
 
     def initialize(self) -> None:
         super().initialize()
-        self.werewolves.clear()
-        self.my_judge_queue.clear()
+        self.werewolves = []
+        self.my_judge_queue = deque()
         # ---------- 5人村15人村共通 ----------
         self.allies = list(self.gameInfo.roleMap.keys())
         self.humans = [a for a in self.gameInfo.statusMap if a not in self.allies]
@@ -55,6 +55,9 @@ class Werewolf(Agent):
         # 初日CO
         self.co_date = 1
         self.kakoi = False
+        self.has_co = False
+        self.has_PP = False
+        self.PP_flag = False
 
         self.strategies = [False, False, False, False, False]
         self.strategyA = self.strategies[0]  # 戦略A: 占い重視
@@ -180,6 +183,7 @@ class Werewolf(Agent):
         day: int = self.gameInfo.day
         self.estimate_possessed()
         self.estimate_seer()
+        return_text = "SKIP"
         others_seer_co: list[str] = [
             a for a in self.comingout_map if self.comingout_map[a] == Role.SEER
         ]
@@ -302,7 +306,7 @@ class Werewolf(Agent):
         latest_vote_list = self.gameInfo.latestVoteList
         tmp_vote_candidate = self.vote_candidate
         if latest_vote_list:
-            print("latest_vote_list:\t", self.vote_to_dict(latest_vote_list))
+            # print("latest_vote_list:\t", self.vote_to_dict(latest_vote_list))
             # 3人で1:1:1に割れた時、周りが投票を変更しないと仮定すると、絶対に投票を変更するべき
             if len(latest_vote_list) == 3:
                 print(
@@ -390,9 +394,8 @@ class Werewolf(Agent):
         vote_target = (
             self.vote_candidate if self.vote_candidate is not None else self.index
         )
-        data = {"agentIdx": int(vote_target)}
 
-        return json.dumps(data, separators=(",", ": "))
+        return vote_target
 
     # 襲撃スコア(=スコア + coef*勝率)の高いエージェント
     def get_attack_agent(self, agent_list: list[str], coef: float = 3.0) -> str:
@@ -424,8 +427,8 @@ class Werewolf(Agent):
             attack_vote_candidates.remove(self.guard_success_agent)
         # 重要：これ以降、襲撃対象に、処刑者・確定狂人・護衛成功者は除きたいから、v.agent in attack_vote_candidates で確認する
         latest_vote_list = self.gameInfo.latestVoteList
-        print("----- attack -----")
-        print("latest_vote_list:\t", self.vote_to_dict(latest_vote_list))
+        # print("----- attack -----")
+        # print("latest_vote_list:\t", self.vote_to_dict(latest_vote_list))
         # print("latest_vote_cnt:\t", self.vote_cnt(latest_vote_list))
         # 脅威：人狼に投票したエージェント
         self.threat = [
@@ -477,6 +480,4 @@ class Werewolf(Agent):
             if self.attack_vote_candidate is not None
             else self.index
         )
-        data = {"agentIdx": int(attack_target)}
-
-        return json.dumps(data, separators=(",", ": "))
+        return attack_target

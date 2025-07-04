@@ -23,7 +23,7 @@ from cls.Species import Species
 
 
 class _Judge(TypedDict):
-    agent: int
+    agent: str
     day: int
     target: int
     result: str
@@ -41,8 +41,13 @@ class Judge:
     result: Species
     """The result of the judgement."""
 
-    def __init__(self, agent: str | None = None, day: int = -1, target: str | None = None,
-                 result: Species = Species.UNC) -> None:
+    def __init__(
+        self,
+        agent: str | None = None,
+        day: int = -1,
+        target: str | None = None,
+        result: Species = Species.UNC,
+    ) -> None:
         """Initialize a new instance of Judge.
 
         Args:
@@ -67,22 +72,19 @@ class Judge:
             The Judge converted from the given _Judge.
         """
         j: Judge = Judge()
-        j.agent = str(judge['agent'])
-        j.day = judge['day']
-        j.target = str(judge['target'])
-        j.result = Species[judge['result']]
+        j.agent = str(judge["agent"])
+        j.day = judge["day"]
+        j.target = str(judge["target"])
+        j.result = Species[judge["result"]]
         return j
 
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, Judge):
             return NotImplemented
-        return (
-            self is __o
-            or (
-                type(self) is type(__o)
-                and self.agent == __o.agent
-                and self.day == __o.day
-                and self.target == __o.target
-                and self.result == __o.result
-            )
+        return self is __o or (
+            type(self) is type(__o)
+            and self.agent == __o.agent
+            and self.day == __o.day
+            and self.target == __o.target
+            and self.result == __o.result
         )

@@ -5,9 +5,9 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class VoteInfo:
-    agent: int
+    agent: str
     day: int
-    target: int
+    target: str
 
     def __str__(self) -> str:
         return f"Day {self.day}: {self.agent} -> {self.target}"
