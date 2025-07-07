@@ -1,7 +1,7 @@
 import subprocess
 import re
 
-def run_and_record_result(times=10, result_file="results.txt"):
+def run_and_record_result(times=100, result_file="results.txt"):
     for i in range(times):
         print(f"第{i+1}局开始")
         # 启动 main.py，捕获标准输出
@@ -23,4 +23,4 @@ def run_and_record_result(times=10, result_file="results.txt"):
             print("未找到胜利方信息，输出如下：")
             print(output)
 
-run_and_record_result(times=10)
+run_and_record_result(times=100)

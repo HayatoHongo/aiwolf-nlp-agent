@@ -61,8 +61,10 @@ class Werewolf(Agent):
             f"現在生存しているプレイヤーは{', '.join(alive_agents)}です。\n"
             "今夜、仲間の人狼や狂人に向けて日本語で一言囁いてください。"
         )
-        from utils.llm_api import call_deepseek_llm
-        return call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
+        from utils.llm_api import call_deepseek_llm, call_openai_llm
+        model = "gpt-3.5-turbo" # OpenAI LLM API
+        #return call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
+        return call_openai_llm(prompt, temperature=0.7, max_tokens=256, model=model)
 
     def attack(self) -> str:
         """襲撃リクエストに対する応答を返す."""

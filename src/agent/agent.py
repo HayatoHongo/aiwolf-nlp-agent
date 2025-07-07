@@ -10,7 +10,7 @@ from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Statu
 
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
-from utils.llm_api import call_deepseek_llm
+from utils.llm_api import call_deepseek_llm, call_openai_llm
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -246,7 +246,17 @@ class Agent:
                 f"{talk_history}\n"
                 "今、あなたが自然な日本語で一言発言してください。"
             )
-        result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
+        # 人狼系（人狼・狂人）は deepseek-chat、市民系は deepseek-reasoner を指定する
+        if self.role == Role.WEREWOLF or self.role == Role.POSSESSED:
+            #model = "deepseek-chat"
+            model = "gpt-3.5-turbo"  # OpenAI LLM API
+        else:
+            #model = "deepseek-reasoner"
+            model = "gpt-3.5-turbo"  #"gpt-4.1" # OpenAI LLM API
+        # 调用 DeepSeek LLM API 生成发言内容
+        # OpenAI LLM API も使用可能
+        #result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=128, model=model)
+        result = call_openai_llm(prompt, temperature=0.7, max_tokens=256, model=model)
         if not result or result.strip().upper() == "SKIP":
             return "SKIP"
         return result
@@ -302,7 +312,16 @@ class Agent:
         )
         
         try:
-            result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=64)
+            # 人狼系（人狼・狂人）は deepseek-chat、市民系は deepseek-reasoner を指定する
+            if self.role == Role.WEREWOLF or self.role == Role.POSSESSED:
+                #model = "deepseek-chat"
+                model = "gpt-3.5-turbo"
+            else:
+                #model = "deepseek-reasoner"
+                model = "gpt-3.5-turbo" #"gpt-4.1"
+            # 调用 DeepSeek LLM API 生成投票内容
+            #result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=128, model=model)
+            result = call_openai_llm(prompt, temperature=0.7, max_tokens=256, model=model)
             print(f"LLM输出: {result}")
             import re
             # 先匹配 Agent[xx]
