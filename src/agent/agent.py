@@ -290,6 +290,7 @@ class Agent:
         self.talk_list_head = 0
         self.vote_candidate = None
         self.alive = []
+        self.turn = 1
         for agent_num in self.gameInfo.statusMap:
             if (self.gameInfo.statusMap[agent_num] == "ALIVE") and (
                 agent_num != self.index
@@ -348,7 +349,9 @@ class Agent:
         if day == 1:
             if self.turn == 1:
                 return_text = self.talk_generator.generate_talk(
-                    ProtocolMean(False, "CO", "ANY", "ANY")
+                    ProtocolMean(False, "CO", None, None),
+                    request=True,
+                    request_target="ANY",
                 )
             elif 2 <= self.turn <= 8:
                 rnd = random.randint(0, 2)
@@ -364,7 +367,7 @@ class Agent:
                     )
                 else:
                     return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(False, "VOTE", "ANY", self.vote_candidate),
+                        ProtocolMean(False, "VOTE", None, self.vote_candidate),
                         request=True,
                         request_target="ANY",
                     )
@@ -381,7 +384,7 @@ class Agent:
                 )
                 if self.turn == 1 and alive_possessed:
                     return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(False, "CO", self.index, self.index, "POSSESSED")
+                        ProtocolMean(False, "CO", self.index, None, "POSSESSED")
                     )
 
             if 1 <= self.turn <= 6:
@@ -398,7 +401,7 @@ class Agent:
                     )
                 else:
                     return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(False, "VOTE", "ANY", self.vote_candidate),
+                        ProtocolMean(False, "VOTE", None, self.vote_candidate),
                         request=True,
                         request_target="ANY",
                     )

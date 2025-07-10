@@ -199,7 +199,7 @@ class Werewolf(Agent):
             self.has_PP = True
             print(f"狂人推定:\t{self.agent_possessed}\t 生存:\t{self.alive_possessed}")
             return_text = self.talk_generator.generate_talk(
-                ProtocolMean(False, "CO", self.index, "WEREWOLF")
+                ProtocolMean(False, "CO", self.index, None,"WEREWOLF")
             )
         # ---------- 5人村 ----------
         if day == 0:
@@ -212,8 +212,7 @@ class Werewolf(Agent):
             if self.turn == 1:
                 return_text = self.talk_generator.generate_talk(
                     ProtocolMean(
-                        False, "CO", "ANY", None, "ANY"
-                    ),  # Noneが１つ余計だったことでprotcolmeanでfirst_translateの処理が入りバグっていた。
+                        False, "CO", None, None, ),  # Noneが１つ余計だったことでprotcolmeanでfirst_translateの処理が入りバグっていた。
                     request=True,
                     request_target="ANY",
                 )
@@ -223,21 +222,21 @@ class Werewolf(Agent):
                 print("占いCO：見つかった")
                 self.has_co = True
                 return_text = self.talk_generator.generate_talk(
-                    ProtocolMean(False, "CO", self.index, "SEER")
+                    ProtocolMean(False, "CO", self.index, None,"SEER")
                 )
             # 2: 占い2COかつ狂人あり
             if not self.has_co and (others_seer_co_num >= 2 and self.alive_possessed):
                 print("占いCO：2COかつ狂人あり")
                 self.has_co = True
                 return_text = self.talk_generator.generate_talk(
-                    ProtocolMean(False, "CO", self.index, "SEER")
+                    ProtocolMean(False, "CO", self.index, None, "SEER")
                 )
             # 3: 3ターン目以降かつ占い1CO
             if not self.has_co and (self.turn >= 3 and others_seer_co_num == 1):
                 print("占いCO：3ターン目以降かつ占い1CO")
                 self.has_co = True
                 return_text = self.talk_generator.generate_talk(
-                    ProtocolMean(False, "CO", self.index, "SEER")
+                    ProtocolMean(False, "CO", self.index, None, "SEER")
                 )
             # ----- 結果報告 -----
             if self.has_co and self.my_judge_queue:
@@ -299,7 +298,7 @@ class Werewolf(Agent):
                     )
                 else:
                     return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(False, "VOTE", "ANY", self.vote_candidate),
+                        ProtocolMean(False, "VOTE", None, self.vote_candidate),
                         request=True,
                         request_target="ANY",
                     )

@@ -20,10 +20,10 @@ class ProtocolMean:
         if self.not_flag:
             text += "NOT "
         if self.talk_subject is not None:
-            text += " " + f"Agent[{self.talk_subject}]"
+            text += " " + f"{self.talk_subject}]"
         text += " " + self.action
         if self.talk_object is not None:
-            text += " " + f"Agent[{self.talk_object}]"
+            text += " " + f"{self.talk_object}]"
         if self.role is not None:
             text += " " + self.role
         if self.team is not None:

@@ -156,7 +156,7 @@ class Possessed(Agent):
             self.has_PP = True
             # return Content(ComingoutContentBuilder(self.me, Role.POSSESSED))
             return_text = self.talk_generator.generate_talk(
-                ProtocolMean(False, "CO", self.index, "WEREWOLF")
+                ProtocolMean(False, "CO", self.index, None,"WEREWOLF")
             )
         # ---------- 5人村 ----------
         if day == 0:
@@ -194,7 +194,7 @@ class Possessed(Agent):
             elif 2 <= turn <= 9:
                 if turn % 2 == 0:
                     return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(False, "VOTE", "ANY", self.new_target),
+                        ProtocolMean(False, "VOTE", None, self.new_target),
                         request=True,
                         request_target="ANY",
                     )
@@ -219,7 +219,7 @@ class Possessed(Agent):
                 )
                 if turn % 2 == 0:
                     return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(False, "VOTE", "ANY", self.new_target),
+                        ProtocolMean(False, "VOTE", None, self.new_target),
                         request=True,
                         request_target="ANY",
                     )
