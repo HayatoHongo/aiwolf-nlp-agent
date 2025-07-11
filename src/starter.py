@@ -63,6 +63,7 @@ def handle_game_session(
     agent: Agent | None = None
     while True:
         packet, raw_json = client.receive()  # 生データも受け取った
+        print(f"[DEBUG] raw_json受信: {raw_json}", flush=True)
         if packet.request == Request.NAME:
             client.send(name)
             continue
@@ -70,8 +71,10 @@ def handle_game_session(
             agent = init_agent_from_packet(config, name, packet)
         if not agent:
             raise ValueError(agent, "エージェントが初期化されていません")
-        agent.convert_json_for_legacy(raw_json)
+        converted = agent.convert_json_for_legacy(raw_json)
+        print(f"[DEBUG] convert_json_for_legacy後: talkHistory={converted.get('talkHistory')}", flush=True)
         agent.get_info()
+        print(f"[DEBUG] get_info後: self.talkHistory={getattr(agent, 'talkHistory', None)}", flush=True)
         req = agent.action()
         agent.agent_logger.packet(agent.request, req)
         if req:

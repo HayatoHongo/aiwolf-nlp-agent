@@ -42,6 +42,8 @@ class gameSettingConverter:
 
         role_num_map_element: RoleNumInfo
         for role_num_map_element in role_num_map:
-            result[role_num_map_element.role.en] = role_num_map_element.allocated_count
+            result[role_num_map_element.role.en] = int(
+                role_num_map_element.allocated_count
+            )
 
         return result

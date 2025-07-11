@@ -36,12 +36,12 @@ class Packet:
             self.setting = Setting(value=value.get("setting"))
         else:
             self.setting = None
-        if value.get("talkHistory") is not None:
-            self.talk_history = TalkList(value=value.get("talkHistory"))
+        if value.get("talk_history") is not None:
+            self.talk_history = TalkList(value=value.get("talk_history"))
         else:
             self.talk_history = None
-        if value.get("whisperHistory") is not None:
-            self.whisper_history = WhisperList(value=value.get("whisperHistory"))
+        if value.get("whisper_history") is not None:
+            self.whisper_history = WhisperList(value=value.get("whisper_history"))
         else:
             self.whisper_history = None
 

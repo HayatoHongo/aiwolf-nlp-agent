@@ -93,171 +93,184 @@ class Seer(Agent):
 
     def talk(self) -> str:
 
-        try:
-            day: int = self.gameInfo.day
+        # try:
+        #     day: int = self.gameInfo.day
 
-            # 占い結果の報告（人狼発見時は強調）
-            if hasattr(self.gameInfo, "divineResult") and self.gameInfo.divineResult:
-                target = self.gameInfo.divineResult["target"]
-                result = self.gameInfo.divineResult["result"]
-                if result == "WEREWOLF":
-                    return f"{target}を占いました。人狼です！{target}に投票しましょう。"
-                else:
-                    return f"{target}を占いました。人間です。"
+        #     # 占い結果の報告（人狼発見時は強調）
+        #     if hasattr(self.gameInfo, "divineResult") and self.gameInfo.divineResult:
+        #         target = self.gameInfo.divineResult["target"]
+        #         result = self.gameInfo.divineResult["result"]
+        #         if result == "WEREWOLF":
+        #             return f"{target}を占いました。人狼です！{target}に投票しましょう。"
+        #         else:
+        #             return f"{target}を占いました。人間です。"
 
-            # 基本的な挨拶とCO
-            if day == 0:
-                if self.turn == 1:
-                    return "よろしくお願いします。"
-                else:
-                    return "Over"
-            elif day == 1:
-                if self.turn == 1 and not self.has_co:
-                    self.has_co = True
-                    return "私は占い師です。"
-                elif self.turn >= 2:
-                    vote_target = self.vote()
-                    if vote_target and vote_target != self.index:
-                        return f"今日は{vote_target}に投票します。"
-
-            return "Over"
-
-        except Exception as e:
-            print(f"[DEBUG] SEER talk error: {e}")
-            return "Over"
-            # day: int = self.gameInfo.day
-
-        # # game: int = Util.game_count
-        # # if self.is_alive(a)でaliveを保証している
-        # others_seer_co: list[str] = [
-        #     a
-        #     for a in self.comingout_map
-        #     if a in self.alive and self.comingout_map[a] == Role.SEER
-        # ]
-        # others_co_num: int = len(others_seer_co)
-        # self.vote_candidate = self.vote()
-        # # ---------- 5人村 ----------
-        # if day == 0:
-        #     if self.turn == 1:
-        #         return_text = "よろしくお願いします。"
-        #     elif self.turn >= 2:
-        #         return_text = "Over"
-        # elif day == 1:
-        #     # ----- CO -----
-        #     if self.turn == 1:
-        #         if not self.has_co:
+        #     # 基本的な挨拶とCO
+        #     if day == 0:
+        #         if self.turn == 1:
+        #             return "よろしくお願いします。"
+        #         else:
+        #             return "Over"
+        #     elif day == 1:
+        #         if self.turn == 1 and not self.has_co:
         #             self.has_co = True
-        #             return_text = self.talk_generator.generate_talk(
-        #                 ProtocolMean(False, "CO", self.index, None, "SEER")
-        #             )
-        #     # ----- 結果報告 -----
-        #     elif self.turn == 2:
-        #         if self.has_co and self.my_judge_queue:
-        #             judge: Judge = self.my_judge_queue.popleft()
-        #             self.new_target = judge.target
-        #             self.new_result = judge.result
-        #             # 黒結果：そのまま報告
-        #             if judge.result == Species.WEREWOLF:
-        #                 return_text = self.talk_generator.generate_talk(
-        #                     ProtocolMean(
-        #                         False, "DIVINED", None, judge.target, judge.result
-        #                     )
-        #                 )
-        #             # 白結果：状況に応じて黒結果を報告
-        #             elif judge.result == Species.HUMAN:
-        #                 self.new_result = Species.WEREWOLF
-        #                 # 対抗なし：人狼確率＋勝率が高いエージェント
-        #                 if others_co_num == 0:
-        #                     self.new_target = self.role_predictor.chooseStrongLikely(
-        #                         Role.WEREWOLF, self.alive, coef=0.1
-        #                     )
-        #                 # 対抗あり：game<50では対抗で人狼っぽいエージェント、game>=50では人狼っぽいエージェント
-        #                 else:
-        #                     # if game < 50:
-        #                     self.new_target = self.role_predictor.chooseMostLikely(
-        #                         Role.WEREWOLF, others_seer_co
-        #                     )
-        #                     # else:
-        #                     #     self.new_target = self.role_predictor
-        #                     #                           .chooseMostLikely(Role.WEREWOLF, self.alive)
-        #                 if self.new_target is None:
-        #                     self.new_target = judge.target
-        #                     self.new_result = judge.result
-        #                 return_text = self.talk_generator.generate_talk(
-        #                     ProtocolMean(
-        #                         False, "DIVINED", None, self.new_target, self.new_result
-        #                     )
-        #                 )
-        #     # ----- VOTE and REQUEST -----
-        #     elif 3 <= self.turn <= 9:
-        #         if self.turn % 2 == 0:
-        #             return_text = self.talk_generator.generate_talk(
-        #                 ProtocolMean(False, "VOTE", None, self.new_target),
-        #                 request=True,
-        #                 request_target="ANY",
-        #             )
-        #         else:
-        #             return_text = self.talk_generator.generate_talk(
-        #                 ProtocolMean(False, "VOTE", None, self.new_target)
-        #             )
-        #     else:
-        #         return_text = "SKIP"
-        # elif day >= 2:
-        #     # ----- 結果報告 -----
-        #     if self.turn == 1:
-        #         if self.has_co and self.my_judge_queue:
-        #             judge: Judge = self.my_judge_queue.popleft()
-        #             self.new_target = judge.target
-        #             self.new_result = judge.result
-        #             # 黒結果：そのまま報告
-        #             if judge.result == Species.WEREWOLF:
-        #                 return_text = self.talk_generator.generate_talk(
-        #                     ProtocolMean(
-        #                         False, "DIVINED", None, judge.target, judge.result
-        #                     )
-        #                 )
-        #             # 白結果：生存者3人だから、残りの1人に黒結果（結果としては等価）
-        #             # 注意：占い先が噛まれた場合は等価ではない→人狼っぽい方に黒結果
-        #             elif judge.result == Species.HUMAN:
-        #                 self.new_target = self.role_predictor.chooseMostLikely(
-        #                     Role.WEREWOLF,
-        #                     [
-        #                         agent
-        #                         for agent in self.not_divined_agents
-        #                         if agent in self.alive
-        #                     ],
-        #                 )
-        #                 self.new_result = Species.WEREWOLF
-        #                 return_text = self.talk_generator.generate_talk(
-        #                     ProtocolMean(
-        #                         False, "DIVINED", None, self.new_target, self.new_result
-        #                     )
-        #                 )
-        #         else:
-        #             return_text = "SKIP"
-        #     # 狂人が生きている場合→人狼COでPPを防ぐ
-        #     elif self.turn == 2 and self.role_predictor.estimate_alive_possessed(
-        #         threshold=0.5
-        #     ):
-        #         return_text = self.talk_generator.generate_talk(
-        #             ProtocolMean(False, "CO", self.index, None, "WEREWOLF")
-        #         )
-        #     # ----- VOTE and REQUEST -----
-        #     elif 2 <= self.turn <= 9:
-        #         if self.turn % 2 == 0:
-        #             return_text = self.talk_generator.generate_talk(
-        #                 ProtocolMean(False, "VOTE", None, self.new_target)
-        #             )
-        #         else:
-        #             return_text = self.talk_generator.generate_talk(
-        #                 ProtocolMean(False, "VOTE", None, self.new_target),
-        #                 request=True,
-        #                 request_target="ANY",
-        #             )
-        #     else:
-        #         return_text = "SKIP"
-        # self.turn += 1
-        # return return_text
+        #             self.turn += 1
+        #             return "私は占い師です。"
+        #         elif self.turn >= 2:
+        #             vote_target = self.vote()
+        #             if vote_target and vote_target != self.index:
+        #                 self.turn += 1
+        #                 return f"今日は{vote_target}に投票します。"
+
+        #     return "Over"
+
+        # except Exception as e:
+        #     print(f"[DEBUG] SEER talk error: {e}")
+        #     return "Over"
+        #     day: int = self.gameInfo.day
+
+        # game: int = Util.game_count
+        # if self.is_alive(a)でaliveを保証している
+        others_seer_co: list[str] = [
+            a
+            for a in self.comingout_map
+            if a in self.alive and self.comingout_map[a] == Role.SEER
+        ]
+        day: int = self.gameInfo.day
+        others_co_num: int = len(others_seer_co)
+        self.vote_candidate = self.vote()
+        # ---------- 5人村 ----------
+        if day == 0:
+            if self.turn == 1:
+                return_text = "よろしくお願いします。"
+            elif self.turn >= 2:
+                return_text = "Over"
+        elif day == 1:
+            # ----- CO -----
+            if self.turn == 1:
+                if not self.has_co:
+                    self.has_co = True
+                    # return_text = self.talk_generator.generate_talk(
+                    #     ProtocolMean(False, "CO", self.index, None, "SEER")
+                    # )
+                    return_text = "私はほんとに占い師です。"
+            # ----- 結果報告 -----
+            elif self.turn == 2:
+                if self.has_co and self.my_judge_queue:
+                    judge: Judge = self.my_judge_queue.popleft()
+                    self.new_target = judge.target
+                    self.new_result = judge.result
+                    # 黒結果：そのまま報告
+                    if judge.result == Species.WEREWOLF:
+                        # return_text = self.talk_generator.generate_talk(
+                        #     ProtocolMean(
+                        #         False, "DIVINED", None, judge.target, judge.result
+                        #     )
+                        # )
+                        return_text = f"{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
+                    # 白結果：状況に応じて黒結果を報告
+                    elif judge.result == Species.HUMAN:
+                        self.new_result = Species.WEREWOLF
+                        # 対抗なし：人狼確率＋勝率が高いエージェント
+                        if others_co_num == 0:
+                            self.new_target = self.role_predictor.chooseStrongLikely(
+                                Role.WEREWOLF, self.alive, coef=0.1
+                            )
+                        # 対抗あり：game<50では対抗で人狼っぽいエージェント、game>=50では人狼っぽいエージェント
+                        else:
+                            # if game < 50:
+                            self.new_target = self.role_predictor.chooseMostLikely(
+                                Role.WEREWOLF, others_seer_co
+                            )
+                            # else:
+                            #     self.new_target = self.role_predictor
+                            #                           .chooseMostLikely(Role.WEREWOLF, self.alive)
+                        if self.new_target is None:
+                            self.new_target = judge.target
+                            self.new_result = judge.result
+                        # return_text = self.talk_generator.generate_talk(
+                        #     ProtocolMean(
+                        #         False, "DIVINED", None, self.new_target, self.new_result
+                        #     )
+                        # )
+                        return_text = f"私はほんとに占い師で、{self.new_target}を占いました。人狼です！(実は嘘){self.new_target}に投票しましょう。"
+            # ----- VOTE and REQUEST -----
+            elif 3 <= self.turn <= 9:
+                if self.turn % 2 == 0:
+                    # return_text = self.talk_generator.generate_talk(
+                    #     ProtocolMean(False, "VOTE", None, self.new_target),
+                    #     request=True,
+                    #     request_target="ANY",
+                    # )
+                    return_text = f"占い師1日目3ターン以降の発言。今日は{self.new_target}に投票しましょう。"
+                else:
+                    # return_text = self.talk_generator.generate_talk(
+                    #     ProtocolMean(False, "VOTE", None, self.new_target)
+                    # )
+                    return_text = f"占い師1日目3ターン以降の発言。今日は{self.new_target}に投票します。"
+            else:
+                return_text = "SKIP"
+        elif day >= 2:
+            # ----- 結果報告 -----
+            if self.turn == 1:
+                if self.has_co and self.my_judge_queue:
+                    judge: Judge = self.my_judge_queue.popleft()
+                    self.new_target = judge.target
+                    self.new_result = judge.result
+                    # 黒結果：そのまま報告
+                    if judge.result == Species.WEREWOLF:
+                        # return_text = self.talk_generator.generate_talk(
+                        #     ProtocolMean(
+                        #         False, "DIVINED", None, judge.target, judge.result
+                        #     )
+                        # )
+                        return_text = f"私はほんとに占い師で、{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
+                    # 白結果：生存者3人だから、残りの1人に黒結果（結果としては等価）
+                    # 注意：占い先が噛まれた場合は等価ではない→人狼っぽい方に黒結果
+                    elif judge.result == Species.HUMAN:
+                        self.new_target = self.role_predictor.chooseMostLikely(
+                            Role.WEREWOLF,
+                            [
+                                agent
+                                for agent in self.not_divined_agents
+                                if agent in self.alive
+                            ],
+                        )
+                        self.new_result = Species.WEREWOLF
+                        # return_text = self.talk_generator.generate_talk(
+                        #     ProtocolMean(
+                        #         False, "DIVINED", None, self.new_target, self.new_result
+                        #     )
+                        # )
+                        return_text = f"私はほんとに占い師で、{self.new_target}を占いました。人狼です！(実は嘘){self.new_target}に投票しましょう。"
+                else:
+                    return_text = "SKIP"
+            # 狂人が生きている場合→人狼COでPPを防ぐ
+            elif self.turn == 2 and self.role_predictor.estimate_alive_possessed(
+                threshold=0.5
+            ):
+                # return_text = self.talk_generator.generate_talk(
+                #     ProtocolMean(False, "CO", self.index, None, "WEREWOLF")
+                # )
+                return_text = "私は人狼です。狂人が生きているので、PPを防ぎます。(実は占い師)"
+            # ----- VOTE and REQUEST -----
+            elif 2 <= self.turn <= 9:
+                if self.turn % 2 == 0:
+                    # return_text = self.talk_generator.generate_talk(
+                    #     ProtocolMean(False, "VOTE", None, self.new_target)
+                    # )
+                    return_text = f"占い師{self.turn}ターン目の発言。今日は{self.new_target}に投票します。"
+                else:
+                    # return_text = self.talk_generator.generate_talk(
+                    #     ProtocolMean(False, "VOTE", None, self.new_target),
+                    #     request=True,
+                    #     request_target="ANY",
+                    # )
+                    return_text = f"占い師{self.turn}ターン目の発言。今日は{self.new_target}に投票しましょう。"
+            else:
+                return_text = "SKIP"
+        self.turn += 1
+        return return_text
 
     def vote(self) -> str:
         # ----------  同数投票の処理 ----------

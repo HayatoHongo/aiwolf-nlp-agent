@@ -24,10 +24,10 @@ class talkHistoryConverter:
         for talk_list_element in communication_history:
             current_talk_dict: dict = dict()
             current_talk_dict["agent"] = talk_list_element.agent
-            current_talk_dict["day"] = talk_list_element.day
-            current_talk_dict["idx"] = talk_list_element.idx
+            current_talk_dict["day"] = int(talk_list_element.day)
+            current_talk_dict["idx"] = int(talk_list_element.idx)
             current_talk_dict["text"] = talk_list_element.text
-            current_talk_dict["turn"] = talk_list_element.turn
+            current_talk_dict["turn"] = int(talk_list_element.turn)
 
             result.append(current_talk_dict)
 

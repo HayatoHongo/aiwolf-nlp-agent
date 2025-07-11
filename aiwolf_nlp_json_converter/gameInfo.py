@@ -51,9 +51,9 @@ class gameInfoConverter:
         attack_vote_element: VoteInfo
         for attack_vote_element in vote_list:
             current_vote_info: dict = dict()
-            current_vote_info["agent"] = attack_vote_element.agent
-            current_vote_info["day"] = attack_vote_element.day
-            current_vote_info["target"] = attack_vote_element.target
+            current_vote_info["agent"] = str(attack_vote_element.agent)
+            current_vote_info["day"] = int(attack_vote_element.day)
+            current_vote_info["target"] = str(attack_vote_element.target)
             result.append(current_vote_info)
 
         return result
@@ -68,10 +68,10 @@ class gameInfoConverter:
         if judgement_result.is_empty():
             return None
 
-        result["agent"] = judgement_result.agent
-        result["day"] = judgement_result.day
-        result["result"] = judgement_result.result
-        result["target"] = judgement_result.target
+        result["agent"] = str(judgement_result.agent)
+        result["day"] = int(judgement_result.day)
+        result["result"] = str(judgement_result.result)
+        result["target"] = str(judgement_result.target)
 
         return result
 

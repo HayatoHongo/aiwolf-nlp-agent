@@ -91,6 +91,39 @@ class Agent:
         ) as f:
             self.comments = f.read().splitlines()
 
+    def initialize(self) -> None:
+        self.index = str(self.gameInfo.agent)
+        self.role = self.gameInfo.roleMap[self.index]
+        self.divination_reports = []
+        self.comingout_map = defaultdict(lambda: None)  # 修正: dict型で初期化
+        self.identification_reports = []
+        self.vote_candidate = None
+        self.talk_list_head = 0
+        self.will_vote_reports = defaultdict(lambda: None)
+        self.talkHistory = []
+        self.protocolHistory = []
+        self.whisperHistory = []
+        self.talk_list_all = []
+        self.protocol_list_all = []
+        self.talk_turn = 0
+        self.role_predictor = None
+        self.N = -1
+        self.M = -1
+        self.agent_idx_0based = -1
+        # フルオープンしたかどうか
+        self.doFO = False
+        # self.all_talk_history = []
+        # self.all_talk_history_protocol = []
+        self.score_matrix = ScoreMatrix(
+            self.gameInfo, self.gameSetting, self.index, self.role
+        )
+
+        self.role_predictor = RolePredictor(
+            self.gameInfo, self.gameSetting, self.index, self.score_matrix
+        )
+        self.talk_generator = TalkGenerator(self.index)
+        self.vote_list = []  # 最新の投票リストを保持
+
     @staticmethod
     def timeout(func: Callable) -> Callable:
         """アクションタイムアウトを設定するデコレータ."""
@@ -159,26 +192,34 @@ class Agent:
         return self.name
 
     def get_info(self):
+        print("[DEBUG] get_infoが呼ばれた")
         data = json.loads(self.received.pop(0))
         if data["gameInfo"] is not None:
+            print("[DEBUG] gameInfoがNoneではない")
             self.gameInfo = GameInfo(**data["gameInfo"])
         if data["gameSetting"] is not None:
             self.gameSetting = GameSetting(**data["gameSetting"])
+            print("[DEBUG] gameSettingがNoneではない")
         self.request = data["request"]
         self.talkHistory: list[TalkHist] = data["talkHistory"]
         if self.talkHistory is None:
             return
         self.protocolHistory: list[ProtocolMean] = []
         for talk in self.talkHistory:
-            self.protocolHistory.extend(
-                convert_to_protocol(talk["text"], str(talk["agent"]), self.index)
-            )
+            protocols = convert_to_protocol(talk["text"], str(talk["agent"]), self.index)
+            print(f"[DEBUG] convert_to_protocol output: {protocols}")
+            self.protocolHistory.extend(protocols)
+            print("[DEBUG] talkHistoryをprotocolHistoryに変換した")
 
+        print(f"[DEBUG] protocolHistory: {self.protocolHistory}")
         self.whisperHistory = data["whisperHistory"]
         self.score_matrix.update(self.gameInfo)
+        # score_matrix更新後にrole_predictorの推論値を更新
+        if self.role_predictor is not None:
+            self.role_predictor.update(self.gameInfo, self.gameSetting)
         for tk, tkz in zip(self.talkHistory, self.protocolHistory):
-            day: int = tk["day"]
-            turn: int = tk["turn"]
+            day: int = int(tk["day"])
+            turn: int = int(tk["turn"])
             talker: str = tk["agent"]
             self.talk_list_all.append(tk)
             self.protocol_list_all.append(tkz)
@@ -186,13 +227,15 @@ class Agent:
                 continue
             # 内容に応じて更新していく
             content: ProtocolMean = copy.deepcopy(tkz)
-            print("content:", content)
+            print(f"[DEBUG] content.action: {content.action}, content: {content}")
+
             if content.action == Topic.CO:
                 if content.role in self.gameInfo.existingRoleList:  # Role.UNC 対策
                     self.comingout_map[talker] = content.role
                     self.score_matrix.talk_co(
                         self.gameInfo, self.gameSetting, talker, content.role, day, turn
                     )
+                    print("会話履歴をスコアマトリクスに渡した")
                 print("CO:\t", talker, content.role)
             elif content.action == Topic.DIVINED:
                 self.score_matrix.talk_divined(
@@ -205,6 +248,7 @@ class Agent:
                     turn,
                     self.divination_reports,
                 )
+                print("占い会話履歴をスコアマトリクスに渡した")
                 self.divination_reports.append(
                     Judge(talker, day, content.talk_object, content.team)
                 )
@@ -220,6 +264,7 @@ class Agent:
                     turn,
                     self.will_vote_reports,
                 )
+                print("投票宣言をスコアマトリクスに渡した")
                 # 投票先を保存
                 self.will_vote_reports[talker] = content.talk_object
             elif content.action == Topic.ESTIMATE:
@@ -233,6 +278,7 @@ class Agent:
                         turn,
                         self.will_vote_reports,
                     )
+                    print("投票宣言をスコアマトリクスに渡した。人狼パターン")
                     self.will_vote_reports[talker] = content.talk_object
                 elif content.role == Role.VILLAGER:
                     self.score_matrix.talk_estimate(
@@ -244,6 +290,7 @@ class Agent:
                         day,
                         turn,
                     )
+                    print("推定会話履歴をスコアマトリクスに渡した")
             elif content.action == Topic.SUSPECT:
                 self.score_matrix.talk_suspect(
                     self.gameInfo,
@@ -253,38 +300,7 @@ class Agent:
                     day,
                     turn,
                 )
-
-    def initialize(self) -> None:
-        self.index = str(self.gameInfo.agent)
-        self.role = self.gameInfo.roleMap[self.index]
-        self.divination_reports = []
-        self.comingout_map = defaultdict(lambda: None)  # 修正: dict型で初期化
-        self.identification_reports = []
-        self.vote_candidate = None
-        self.talk_list_head = 0
-        self.will_vote_reports = defaultdict(lambda: None)
-        self.talkHistory = []
-        self.protocolHistory = []
-        self.whisperHistory = []
-        self.talk_list_all = []
-        self.protocol_list_all = []
-        self.talk_turn = 0
-        self.role_predictor = None
-        self.N = -1
-        self.M = -1
-        self.agent_idx_0based = -1
-        # フルオープンしたかどうか
-        self.doFO = False
-        # self.all_talk_history = []
-        # self.all_talk_history_protocol = []
-        self.score_matrix = ScoreMatrix(
-            self.gameInfo, self.gameSetting, self.index, self.role
-        )
-        self.role_predictor = RolePredictor(
-            self.gameInfo, self.gameSetting, self, self.score_matrix
-        )
-        self.talk_generator = TalkGenerator(self.name)
-        self.vote_list = []  # 最新の投票リストを保持
+                print("疑い会話履歴をスコアマトリクスに渡した")
 
     def daily_initialize(self) -> None:
         self.talk_list_head = 0
@@ -348,29 +364,33 @@ class Agent:
         # ...existing code...
         if day == 1:
             if self.turn == 1:
-                return_text = self.talk_generator.generate_talk(
-                    ProtocolMean(False, "CO", None, None),
-                    request=True,
-                    request_target="ANY",
-                )
+                # return_text = self.talk_generator.generate_talk(
+                #     ProtocolMean(False, "CO", None, None),
+                #     request=True,
+                #     request_target="ANY",
+                # )
+                return_text = "ゲーム初日初発言。だれかCOしてください"
             elif 2 <= self.turn <= 8:
                 rnd = random.randint(0, 2)
                 if rnd == 0:
-                    return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(
-                            False, "ESTIMATE", None, self.vote_candidate, "WEREWOLF"
-                        )
-                    )
+                    # return_text = self.talk_generator.generate_talk(
+                    #     ProtocolMean(
+                    #         False, "ESTIMATE", None, self.vote_candidate, "WEREWOLF"
+                    #     )
+                    # )
+                    return_text = f"私は村人で、{self.vote_candidate}が怪しいんじゃないかな"
                 elif rnd == 1:
-                    return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(False, "VOTE", None, self.vote_candidate)
-                    )
+                    # return_text = self.talk_generator.generate_talk(
+                    #     ProtocolMean(False, "VOTE", None, self.vote_candidate)
+                    # )
+                    return_text = f"私は村人投票先は{self.vote_candidate}です。"
                 else:
-                    return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(False, "VOTE", None, self.vote_candidate),
-                        request=True,
-                        request_target="ANY",
-                    )
+                    # return_text = self.talk_generator.generate_talk(
+                    #     ProtocolMean(False, "VOTE", None, self.vote_candidate),
+                    #     request=True,
+                    #     request_target="ANY",
+                    # )
+                    return_text = f"私は村人投票先は{self.vote_candidate}です。投票をお願いします。"
             else:
                 return_text = "Over"
         elif day >= 2:
@@ -383,9 +403,10 @@ class Agent:
                     self.gameInfo.statusMap[agent_possessed] == Status.ALIVE
                 )
                 if self.turn == 1 and alive_possessed:
-                    return_text = self.talk_generator.generate_talk(
-                        ProtocolMean(False, "CO", self.index, None, "POSSESSED")
-                    )
+                    # return_text = self.talk_generator.generate_talk(
+                    #     ProtocolMean(False, "CO", self.index, None, "POSSESSED")
+                    # )
+                    return_text = "PP宣言します。狂人です。"
 
             if 1 <= self.turn <= 6:
                 rnd = random.randint(0, 2)
