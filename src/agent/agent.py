@@ -369,7 +369,7 @@ class Agent:
                 #     request=True,
                 #     request_target="ANY",
                 # )
-                return_text = "ゲーム初日初発言。だれかCOしてください"
+                return_text = "だれかCOしましょう"
             elif 2 <= self.turn <= 8:
                 rnd = random.randint(0, 2)
                 if rnd == 0:
@@ -383,7 +383,7 @@ class Agent:
                     # return_text = self.talk_generator.generate_talk(
                     #     ProtocolMean(False, "VOTE", None, self.vote_candidate)
                     # )
-                    return_text = f"私は村人投票先は{self.vote_candidate}です。"
+                    return_text = f"私は村人、投票先は{self.vote_candidate}です。"
                 else:
                     # return_text = self.talk_generator.generate_talk(
                     #     ProtocolMean(False, "VOTE", None, self.vote_candidate),

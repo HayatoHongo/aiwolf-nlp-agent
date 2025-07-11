@@ -193,7 +193,7 @@ class Seer(Agent):
                         #         False, "DIVINED", None, self.new_target, self.new_result
                         #     )
                         # )
-                        return_text = f"私はほんとに占い師で、{self.new_target}を占いました。人狼です！(実は嘘){self.new_target}に投票しましょう。"
+                        return_text = f"私はほんとに占い師で、{self.new_target}を占いました。人狼です！{self.new_target}に投票しましょう。"
             # ----- VOTE and REQUEST -----
             elif 3 <= self.turn <= 9:
                 if self.turn % 2 == 0:
@@ -202,12 +202,12 @@ class Seer(Agent):
                     #     request=True,
                     #     request_target="ANY",
                     # )
-                    return_text = f"占い師1日目3ターン以降の発言。今日は{self.new_target}に投票しましょう。"
+                    return_text = f"今日は{self.new_target}に投票しましょう。"
                 else:
                     # return_text = self.talk_generator.generate_talk(
                     #     ProtocolMean(False, "VOTE", None, self.new_target)
                     # )
-                    return_text = f"占い師1日目3ターン以降の発言。今日は{self.new_target}に投票します。"
+                    return_text = f"今日は{self.new_target}に投票します。"
             else:
                 return_text = "SKIP"
         elif day >= 2:
@@ -252,21 +252,21 @@ class Seer(Agent):
                 # return_text = self.talk_generator.generate_talk(
                 #     ProtocolMean(False, "CO", self.index, None, "WEREWOLF")
                 # )
-                return_text = "私は人狼です。狂人が生きているので、PPを防ぎます。(実は占い師)"
+                return_text = "私は人狼です。PP宣言します"
             # ----- VOTE and REQUEST -----
             elif 2 <= self.turn <= 9:
                 if self.turn % 2 == 0:
                     # return_text = self.talk_generator.generate_talk(
                     #     ProtocolMean(False, "VOTE", None, self.new_target)
                     # )
-                    return_text = f"占い師{self.turn}ターン目の発言。今日は{self.new_target}に投票します。"
+                    return_text = f"今日は{self.new_target}に投票します。"
                 else:
                     # return_text = self.talk_generator.generate_talk(
                     #     ProtocolMean(False, "VOTE", None, self.new_target),
                     #     request=True,
                     #     request_target="ANY",
                     # )
-                    return_text = f"占い師{self.turn}ターン目の発言。今日は{self.new_target}に投票しましょう。"
+                    return_text = f"今日は{self.new_target}に投票しましょう。"
             else:
                 return_text = "SKIP"
         self.turn += 1

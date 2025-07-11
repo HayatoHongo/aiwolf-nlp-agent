@@ -172,7 +172,7 @@ class Possessed(Agent):
                     # return_text = self.talk_generator.generate_talk(
                     #     ProtocolMean(False, "CO", self.index, None, "SEER")
                     # )
-                    return_text = "狂人ですが、私は占い師です。"
+                    return_text = "私は占い師です。"
             # ----- 結果報告 -----
             elif turn == 2:
                 if self.has_co and not self.has_report:
@@ -192,7 +192,7 @@ class Possessed(Agent):
                     #         False, "DIVINED", None, self.new_target, self.new_result
                     #     )
                     # )
-                    return_text = "適当なターゲットを占い、嘘結果を言います"
+                    return_text = f"今日の占い結果は{self.new_target}は人狼です。"
             elif 2 <= turn <= 9:
                 if turn % 2 == 0:
                     return_text = self.talk_generator.generate_talk(
@@ -213,7 +213,7 @@ class Possessed(Agent):
                 # return_text = self.talk_generator.generate_talk(
                 #     ProtocolMean(False, "CO", self.index, None, "WEREWOLF")
                 # )
-                return_text = "PP宣言します。狂人ですが、私は人狼です。この発言は実現されないはずです"
+                return_text = "PP宣言します。私は人狼です。"
             # ----- VOTE and REQUEST -----
             elif 2 <= turn <= 9:
                 # 候補：人狼っぽくないエージェント
