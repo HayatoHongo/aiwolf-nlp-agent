@@ -5,6 +5,8 @@ from aiwolf_nlp_json_converter import AIWolfNLPJsonConverter
 import random
 from pathlib import Path
 from typing import TYPE_CHECKING
+from utils.llm_api import call_openai_llm
+
 
 from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Status, Talk
 
@@ -350,6 +352,13 @@ class Agent:
         return random.choice(self.comments)  # noqa: S311
 
     def talk(self) -> str:
+        """役職に応じてtalkメソッドを振り分けるデリゲータ。"""
+        if self.role in (Role.WEREWOLF, Role.POSSESSED):
+            return self.talk_llmbase()
+        else:
+            return self.talk_protocol()
+
+    def talk_protocol(self) -> str:
         day: int = self.gameInfo.day
         self.vote_candidate = self.choose_vote_candidate()
         print(f"[DEBUG] talk: vote_candidate={self.vote_candidate}")
@@ -437,6 +446,57 @@ class Agent:
             return_text = "Over"
         self.turn += 1
         return return_text
+
+    def talk_llmbase(self) -> str:
+        """GPTベースのtalk関数をそのままtalk_llmbaseとして移植。"""
+        # 発言回数制限
+        if hasattr(self, "talk_limit") and self.talk_count >= self.talk_limit:
+            return "OVER"
+        self.talk_count += 1
+        # 役職取得
+        role = self.role.value if hasattr(self.role, "value") else str(self.role)
+        # 履歴整形
+        all_talks = self.talk_history + self.whisper_history
+        filtered_talks = [t for t in all_talks if t.text not in ("OVER", "SKIP")]
+        talk_history = "\n".join([f"{t.agent}: {t.text}" for t in filtered_talks])
+        # プロフィール
+        persona_profile = ""
+        if self.info and self.info.profile:
+            persona_profile = (
+                f"あなたの性格・背景情報は以下の通りです：\n{self.info.profile}\n"
+                "必ずこの性格・口調・話し方を守って発言してください。\n"
+            )
+        # 前日まとめ
+        prev_summary = ""
+        if getattr(self, "prev_day_summary", ""):
+            prev_summary = (
+                "【前日の議論まとめ】\n"
+                f"{self.prev_day_summary}\n"
+                "...省略...本当に何も言うことがなければ「SKIP」とだけ答えてください。\n"
+            )
+        # 基本設定文
+        last_executed = getattr(self.info, "executed_agent", None) or "なし"
+        last_attacked = getattr(self.info, "attacked_agent", None) or "なし"
+        if self.day == 0:
+            base_setting = (
+                f"これは5人プレイのAI人狼ゲームです。今日は{self.day}日目です。"
+                "配役は以下の通りです：【村人2人、占い師1人、人狼1人、狂人1人】。今日は最初の議論日です。"
+            )
+        else:
+            base_setting = (
+                f"これは5人プレイのAI人狼ゲームです。今日は{self.day}日目です。昨日は{last_executed}が処刑され、{last_attacked}が襲撃されました。"
+                "配役は以下の通りです：【村人2人、占い師1人、人狼1人、狂人1人】。...SKIPとだけ答えてください。"
+            )
+        # プロンプト組み立て（省略せずに全role分岐を移植してください）
+        prompt = f"{base_setting}\n{prev_summary}{persona_profile}{talk_history}\n"
+        # モデル選択
+        model = (
+            "gpt-4.1"
+            if self.role in (Role.WEREWOLF, Role.POSSESSED)
+            else "gpt-3.5-turbo"
+        )
+        result = call_openai_llm(prompt, temperature=0.7, max_tokens=256, model=model)
+        return "SKIP" if not result or result.strip().upper() == "SKIP" else result
 
     def daily_finish(self) -> None:
         """昼終了リクエストに対する処理を行う."""
