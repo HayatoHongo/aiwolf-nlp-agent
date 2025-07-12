@@ -232,12 +232,11 @@ class Agent:
             print(f"[DEBUG] content.action: {content.action}, content: {content}")
 
             if content.action == Topic.CO:
-                if content.role in self.gameInfo.existingRoleList:  # Role.UNC 対策
-                    self.comingout_map[talker] = content.role
-                    self.score_matrix.talk_co(
-                        self.gameInfo, self.gameSetting, talker, content.role, day, turn
-                    )
-                    print("会話履歴をスコアマトリクスに渡した")
+                self.comingout_map[talker] = content.role
+                self.score_matrix.talk_co(
+                    self.gameInfo, self.gameSetting, talker, content.role, day, turn
+                )
+                print("会話履歴をスコアマトリクスに渡した")
                 print("CO:\t", talker, content.role)
             elif content.action == Topic.DIVINED:
                 self.score_matrix.talk_divined(
@@ -354,8 +353,8 @@ class Agent:
     def talk(self) -> str:
         """役職に応じてtalkメソッドを振り分けるデリゲータ。"""
         if self.role in (Role.WEREWOLF, Role.POSSESSED):
-            #return self.talk_llmbase()
-            return self.talk_protocol()
+            return self.talk_llmbase()
+            #return self.talk_protocol()
         else:
             return self.talk_protocol()
 
