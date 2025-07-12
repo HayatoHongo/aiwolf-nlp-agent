@@ -354,7 +354,8 @@ class Agent:
     def talk(self) -> str:
         """役職に応じてtalkメソッドを振り分けるデリゲータ。"""
         if self.role in (Role.WEREWOLF, Role.POSSESSED):
-            return self.talk_llmbase()
+            #return self.talk_llmbase()
+            return self.talk_protocol()
         else:
             return self.talk_protocol()
 

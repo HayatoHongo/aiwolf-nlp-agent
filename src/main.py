@@ -5,7 +5,8 @@ import multiprocessing
 from pathlib import Path
 import sys
 import os
-
+from dotenv import load_dotenv
+load_dotenv()
 # プロジェクトのルートディレクトリをPythonパスに追加
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)

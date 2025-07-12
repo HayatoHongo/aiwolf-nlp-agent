@@ -15,6 +15,14 @@ class ProtocolMean:
     mention_flag: bool = False
     original_text: str | None = None
 
+    def __post_init__(self):
+        import math
+        # nanを空文字に変換
+        for attr in ["talk_object", "team", "role", "talk_subject"]:
+            val = getattr(self, attr)
+            if isinstance(val, float) and math.isnan(val):
+                setattr(self, attr, "")
+
     def __str__(self) -> str:
         text = ""
         if self.not_flag:
