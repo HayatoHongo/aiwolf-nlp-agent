@@ -276,6 +276,10 @@ class Seer(Agent):
         return return_text
 
     def vote(self) -> str:
+        #return self.vote_protocol()
+        return self.vote_llmbase()
+
+    def vote_protocol(self) -> str:
         # ----------  同数投票の処理 ----------
         latest_vote_list = self.gameInfo.latestVoteList
         if latest_vote_list:

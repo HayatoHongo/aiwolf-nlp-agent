@@ -191,7 +191,7 @@ class Agent:
             self.day = packet.day
         elif hasattr(packet, "info") and hasattr(packet.info, "day"):
             self.day = packet.info.day
-        #self.agent_logger.logger.debug(packet)
+        # self.agent_logger.logger.debug(packet)
 
     def convert_json_for_legacy(self, json_str: str) -> dict:
         """新しいJSON形式を旧エージェント用に変換する."""
@@ -381,8 +381,8 @@ class Agent:
         #     return self.talk_llmbase()
         #     #return self.talk_protocol()
         # else:
+        #return self.talk_protocol()
         return self.talk_protocol()
-        # return self.talk_protocol()
 
     def talk_protocol(self) -> str:
         day: int = self.gameInfo.day
@@ -505,7 +505,6 @@ class Agent:
                 "・他のプレイヤーに質問したいことや、議論を深めるための提案\n"
                 "などを意識して、自然な日本語で一言発言してください。\n"
                 "※同じ内容の繰り返しや曖昧な発言は避け、できるだけ具体的な推理や意見を述べてください。\n"
-                "本当に何も言うことがなければ「SKIP」とだけ答えてください。\n"
             )
 
         last_executed = getattr(self.info, "executed_agent", None)
@@ -528,7 +527,6 @@ class Agent:
                 "他のプレイヤーの正体はわかりません。あなたは自分の役職と過去の発言から、他者の正体を推理し、"
                 "村人陣営または人狼陣営として勝利を目指してください。"
                 "同じ内容を繰り返さず、新しい視点や推理を述べてください。気になる点について他の人に質問してもいいです。"
-                "もし本当に何も言うことがなければ、SKIPとだけ答えてください。"
             )
 
         if self.role == Role.VILLAGER:
@@ -596,7 +594,7 @@ class Agent:
         # 调用 DeepSeek LLM API 生成发言内容
         # OpenAI LLM API も使用可能
         # result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=128, model=model)
-        result = call_openai_llm(prompt, temperature=0.7, max_tokens=256, model=model)
+        result = call_openai_llm(prompt, temperature=1.5, max_tokens=256, model=model)
         if not result or result.strip().upper() == "SKIP":
             return "SKIP"
         return result
@@ -662,6 +660,70 @@ class Agent:
         return new_target if new_target is not None else self.index
 
     def vote(self) -> str:
+        #return self.vote_protocol()
+        return self.vote_llmbase()
+
+    def vote_llmbase(self) -> str:
+        """用LLM生成投票目标和理由，并详细记录日志，返回值只返回玩家名。"""
+        role = self.role.value if hasattr(self.role, "value") else str(self.role)
+        all_talks = self.talk_history + self.whisper_history
+        filtered_talks = [t for t in all_talks if t.text not in ("OVER", "SKIP")]
+        talk_history = "\n".join([f"{t.agent}: {t.text}" for t in filtered_talks])
+        alive_agents = [a for a in self.get_alive_agents() if a != self.agent_name]
+
+        if not alive_agents:
+            print("No alive agents, voting for self.")
+            return self.agent_name  # 如果没有其他存活玩家，投给自己
+
+        agent_map = {f"Agent[{i+1:02d}]": name for i, name in enumerate(alive_agents)}
+        agent_list_str = "\n".join([f"{v}（{k}）" for k, v in agent_map.items()])
+
+        prompt = (
+            f"あなたはAI人狼ゲームの{role}です。以下はこれまでの発言履歴です：\n"
+            f"{talk_history}\n"
+            f"現在生存しているプレイヤーは以下の通りです：\n{agent_list_str}\n"
+            "この中から一人を投票で選び、その理由も日本語で簡潔に説明してください。"
+            "投票先は 名前（例：ベンジャミン）としてください。"
+            "例: ベンジャミンに投票します。理由は発言が少ないからです。"
+        )
+
+        try:
+            # 人狼系（人狼・狂人）は deepseek-chat、市民系は deepseek-reasoner を指定する
+            if self.role == Role.WEREWOLF or self.role == Role.POSSESSED:
+                # model = "deepseek-chat"
+                model = "gpt-3.5-turbo"
+            else:
+                # model = "deepseek-reasoner"
+                model = "gpt-3.5-turbo"  # "gpt-4.1"
+            # 调用 DeepSeek LLM API 生成投票内容
+            # result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=128, model=model)
+            result = call_openai_llm(
+                prompt, temperature=1.5, max_tokens=256, model=model
+            )
+            print(f"LLM输出: {result}")
+            import re
+
+            # 先匹配 Agent[xx]
+            m = re.search(r"(Agent\\[\\d+\\])", result)
+            if m and m.group(1) in agent_map:
+                target_name = agent_map[m.group(1)]
+                print(f"匹配到编号: {m.group(1)}，实际投票对象: {target_name}")
+                return target_name
+            # 再匹配具体名字
+            for name in alive_agents:
+                if name in result:
+                    print(f"匹配到名字: {name}")
+                    return name
+            # fallback
+            target = random.choice(alive_agents)
+            print(f"未匹配到，随机投票: {target}")
+            return target
+        except Exception as e:
+            target = random.choice(alive_agents)
+            print(f"LLM异常: {e}，随机投票: {target}")
+            return target
+
+    def vote_protocol(self) -> str:
         self.vote_candidate = self.choose_vote_candidate()
         return self.vote_candidate
 

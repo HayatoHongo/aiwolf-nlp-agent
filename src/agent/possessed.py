@@ -245,6 +245,10 @@ class Possessed(Agent):
         return return_text
 
     def vote(self) -> str:
+        return self.vote_protocol()
+        # return self.vote_llmbase()
+
+    def vote_protocol(self) -> str:
         self.estimate_werewolf()
         vote_candidates: list[str] = self.alive.copy()
         # 確定人狼がいたら除外
