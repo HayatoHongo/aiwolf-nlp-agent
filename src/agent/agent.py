@@ -242,8 +242,8 @@ class Agent:
         self.whisperHistory = data["whisperHistory"]
         self.score_matrix.update(self.gameInfo)
         # score_matrix更新後にrole_predictorの推論値を更新
-        if self.role_predictor is not None:
-            self.role_predictor.update(self.gameInfo, self.gameSetting)
+        # if self.role_predictor is not None:
+        self.role_predictor.update(self.gameInfo, self.gameSetting)
         for tk, tkz in zip(self.talkHistory, self.protocolHistory):
             day: int = int(tk["day"])
             turn: int = int(tk["turn"])
@@ -263,6 +263,7 @@ class Agent:
                 )
                 print("会話履歴をスコアマトリクスに渡した")
                 print("CO:\t", talker, content.role)
+                self.role_predictor.update(self.gameInfo, self.gameSetting)  # ←追加
             elif content.action == Topic.DIVINED:
                 self.score_matrix.talk_divined(
                     self.gameInfo,
@@ -279,6 +280,7 @@ class Agent:
                     Judge(talker, day, content.talk_object, content.team)
                 )
                 print("DIVINED:\t", talker, content.talk_object, content.team)
+                self.role_predictor.update(self.gameInfo, self.gameSetting)  # ←追加
             elif content.action == Topic.VOTE:
                 # 古い投票先が上書きされる前にスコアを更新 (2回以上投票宣言している場合に信頼度を下げるため)
                 self.score_matrix.talk_will_vote(
@@ -293,6 +295,7 @@ class Agent:
                 print("投票宣言をスコアマトリクスに渡した")
                 # 投票先を保存
                 self.will_vote_reports[talker] = content.talk_object
+                self.role_predictor.update(self.gameInfo, self.gameSetting)  # ←追加
             elif content.action == Topic.ESTIMATE:
                 if content.role == Role.WEREWOLF:
                     self.score_matrix.talk_will_vote(
@@ -306,6 +309,7 @@ class Agent:
                     )
                     print("投票宣言をスコアマトリクスに渡した。人狼パターン")
                     self.will_vote_reports[talker] = content.talk_object
+                    self.role_predictor.update(self.gameInfo, self.gameSetting)  # ←追加
                 elif content.role == Role.VILLAGER:
                     self.score_matrix.talk_estimate(
                         self.gameInfo,
@@ -317,6 +321,7 @@ class Agent:
                         turn,
                     )
                     print("推定会話履歴をスコアマトリクスに渡した")
+                    self.role_predictor.update(self.gameInfo, self.gameSetting)  # ←追加
             elif content.action == Topic.SUSPECT:
                 self.score_matrix.talk_suspect(
                     self.gameInfo,
@@ -327,6 +332,7 @@ class Agent:
                     turn,
                 )
                 print("疑い会話履歴をスコアマトリクスに渡した")
+                self.role_predictor.update(self.gameInfo, self.gameSetting)  # ←追加
 
     def daily_initialize(self) -> None:
         self.talk_list_head = 0
@@ -381,7 +387,7 @@ class Agent:
         #     return self.talk_llmbase()
         #     #return self.talk_protocol()
         # else:
-        #return self.talk_protocol()
+        # return self.talk_protocol()
         return self.talk_protocol()
 
     def talk_protocol(self) -> str:
@@ -660,8 +666,8 @@ class Agent:
         return new_target if new_target is not None else self.index
 
     def vote(self) -> str:
-        #return self.vote_protocol()
-        return self.vote_llmbase()
+        return self.vote_protocol()
+        # return self.vote_llmbase()
 
     def vote_llmbase(self) -> str:
         """用LLM生成投票目标和理由，并详细记录日志，返回值只返回玩家名。"""

@@ -140,8 +140,8 @@ class Possessed(Agent):
 
     def talk(self) -> str:
         """狂人のtalkメソッド."""
-        #return self.talk_protocol()
-        return self.talk_llmbase()
+        return self.talk_protocol()
+        #return self.talk_llmbase()
 
     def talk_protocol(self) -> str:
         day: int = self.gameInfo.day

@@ -14,7 +14,8 @@ class GameInfo:
     # リスト型フィールド（空リストをデフォルト値に）
     attackVoteList: list = field(default_factory=list)
     englishTalkList: list[TalkHist] = field(default_factory=list)
-    existingRoleList: list[str] = field(default_factory=list)
+    #5人人狼はこれで確定なので、デフォルト値を設定
+    existingRoleList: list[str] = field(default_factory=lambda: ["VILLAGER", "VILLAGER", "SEER", "POSSESSED", "WEREWOLF"])
     lastDeadAgentList: list[str] = field(default_factory=list)
     latestAttackVoteList: list = field(default_factory=list)
     talkList: list[TalkHist] = field(default_factory=list)
