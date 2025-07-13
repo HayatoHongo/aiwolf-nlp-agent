@@ -92,7 +92,10 @@ class Seer(Agent):
         return
 
     def talk(self) -> str:
-
+        """占い師のtalkメソッド."""
+        return self.talk_protocol()
+        #return self.talk_llmbase()
+    def talk_protocol(self) -> str:
         # try:
         #     day: int = self.gameInfo.day
 
@@ -193,7 +196,7 @@ class Seer(Agent):
                         #         False, "DIVINED", None, self.new_target, self.new_result
                         #     )
                         # )
-                        return_text = f"私はほんとに占い師で、{self.new_target}を占いました。人狼です！{self.new_target}に投票しましょう。"
+                        return_text = f"{self.new_target}を占いました。人狼です！{self.new_target}に投票しましょう。"
             # ----- VOTE and REQUEST -----
             elif 3 <= self.turn <= 9:
                 if self.turn % 2 == 0:

@@ -74,6 +74,7 @@ def handle_game_session(
         converted = agent.convert_json_for_legacy(raw_json)
         print(f"[DEBUG] convert_json_for_legacy後: talkHistory={converted.get('talkHistory')}", flush=True)
         agent.get_info()
+        agent.set_packet(packet)
         print(f"[DEBUG] get_info後: self.talkHistory={getattr(agent, 'talkHistory', None)}", flush=True)
         req = agent.action()
         agent.agent_logger.packet(agent.request, req)
