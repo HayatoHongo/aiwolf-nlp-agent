@@ -10,7 +10,8 @@ from aiwolf_nlp_common.packet import Info, Packet, Request, Role, Setting, Statu
 
 from utils.agent_logger import AgentLogger
 from utils.stoppable_thread import StoppableThread
-from utils.llm_api import call_deepseek_llm, call_openai_llm
+from utils.llm_api import call_deepseek_llm, call_openai_llm, call_o4mini_http  
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -246,17 +247,15 @@ class Agent:
                 f"{talk_history}\n"
                 "今、あなたが自然な日本語で一言発言してください。"
             )
-        # 人狼系（人狼・狂人）は deepseek-chat、市民系は deepseek-reasoner を指定する
+        # 人狼系（人狼・狂人）は o4-mini、市民系は gpt-3.5-turbo を指定する
         if self.role == Role.WEREWOLF or self.role == Role.POSSESSED:
-            #model = "deepseek-chat"
-            model = "gpt-3.5-turbo"  # OpenAI LLM API
+            #result = call_o4mini_http(user_prompt=prompt, system_prompt="256文字以内で簡潔に回答してください。")
+            model = "gpt-4.1"
+            result = call_openai_llm(prompt, temperature=1.0, max_tokens=256, model=model)
         else:
-            #model = "deepseek-reasoner"
             model = "gpt-3.5-turbo"  #"gpt-4.1" # OpenAI LLM API
-        # 调用 DeepSeek LLM API 生成发言内容
-        # OpenAI LLM API も使用可能
-        #result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=128, model=model)
-        result = call_openai_llm(prompt, temperature=0.7, max_tokens=256, model=model)
+            result = call_openai_llm(prompt, temperature=1.0, max_tokens=256, model=model)
+
         if not result or result.strip().upper() == "SKIP":
             return "SKIP"
         return result
@@ -305,23 +304,23 @@ class Agent:
             f"あなたはAI人狼ゲームの{role}です。以下はこれまでの発言履歴です：\n"
             f"{talk_history}\n"
             f"現在生存しているプレイヤーは以下の通りです：\n{agent_list_str}\n"
-            "この中から一人を投票で選び、その理由も日本語で簡潔に説明してください。"
+            "この中から一人を投票で選び、その理由も日本語で非常に簡潔に説明してください。"
             "投票先は 'Agent[xx]' または名前（例：ベンジャミン）どちらでも構いません。"
             "例: Agent[03]に投票します。理由は発言が少ないからです。"
             "例: ベンジャミンに投票します。理由は発言が少ないからです。"
         )
-        
+
         try:
-            # 人狼系（人狼・狂人）は deepseek-chat、市民系は deepseek-reasoner を指定する
+            # 人狼系（人狼・狂人）は gpt-4.1、市民系は gpt-3.5-turbo を指定する
             if self.role == Role.WEREWOLF or self.role == Role.POSSESSED:
-                #model = "deepseek-chat"
-                model = "gpt-3.5-turbo"
+                #model = "gpt-4.1" #"gpt-3.5-turbo"  # OpenAI LLM API
+                #result = call_o4mini_http(user_prompt=prompt, system_prompt="256文字以内で簡潔に回答してください。")
+                model = "gpt-4.1"  
+                result = call_openai_llm(prompt, temperature=1.0, max_tokens=256, model=model)
             else:
-                #model = "deepseek-reasoner"
-                model = "gpt-3.5-turbo" #"gpt-4.1"
-            # 调用 DeepSeek LLM API 生成投票内容
-            #result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=128, model=model)
-            result = call_openai_llm(prompt, temperature=0.7, max_tokens=256, model=model)
+                model = "gpt-3.5-turbo"  #"gpt-4.1" # OpenAI LLM API
+                result = call_openai_llm(prompt, temperature=1.0, max_tokens=256, model=model)
+                
             print(f"LLM输出: {result}")
             import re
             # 先匹配 Agent[xx]
@@ -339,6 +338,7 @@ class Agent:
             target = random.choice(alive_agents)
             print(f"未匹配到，随机投票: {target}")
             return target
+        
         except Exception as e:
             target = random.choice(alive_agents)
             print(f"LLM异常: {e}，随机投票: {target}")

@@ -104,12 +104,58 @@ def call_openai_llm(
     except (KeyError, IndexError) as e:
         # レスポンス解析エラーの詳細を返す
         return f"OpenAI API レスポンス解析中にエラー発生: {e}"
+import os
+import requests
+
+# 環境変数 OPENAI_API_KEY に API キーをセットしてください
+API_URL = "https://api.openai.com/v1/chat/completions"
 
 
-# 動作確認用サンプル
+def call_o4mini_http(
+    user_prompt: str,
+    system_prompt: str = None
+) -> str:
+    """
+    o4-mini モデルを直接 HTTP リクエストで呼び出す関数。
+
+    Args:
+        user_prompt: ユーザーからの入力文字列
+        system_prompt: 任意のシステムプロンプト（省略可）
+
+    Returns:
+        モデルからのレスポンス文字列
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY が設定されていません。環境変数を確認してください。")
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    # メッセージを組み立て
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_prompt})
+
+    payload = {
+        "model": "o4-mini",
+        "messages": messages
+    }
+
+    response = requests.post(API_URL, headers=headers, json=payload)
+    response.raise_for_status()
+
+    data = response.json()
+    # レスポンスの最初のメッセージを取得
+    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    return content
+
+
 if __name__ == "__main__":
-    answer = call_openai_llm(
-        prompt="こんにちは、今日の天気を教えてください。",
-        model= "gpt-3.5-turbo" #"gpt-4.1"
-    )
-    print(answer)
+    # サンプル実行
+    sys_prompt = "You are a concise assistant. Answer briefly."
+    usr_prompt = "今日の天気を教えてください。"
+    print(call_o4mini_http(usr_prompt, sys_prompt))
