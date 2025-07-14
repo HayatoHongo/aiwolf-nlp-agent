@@ -387,8 +387,8 @@ class Agent:
         #     return self.talk_llmbase()
         #     #return self.talk_protocol()
         # else:
-        # return self.talk_protocol()
-        return self.talk_protocol()
+        return self.talk_llmbase()
+        #return self.talk_protocol()
 
     def talk_protocol(self) -> str:
         day: int = self.gameInfo.day
@@ -521,6 +521,9 @@ class Agent:
             last_attacked = "なし"
 
         if self.day == 0:
+            if self.turn >= 2:
+                self.turn += 1
+                return "Over"
             base_setting = (
                 f"これは5人プレイのAI人狼ゲームです。今日は{self.day}日目です。"
                 "配役は以下の通りです：【村人2人、占い師1人、人狼1人、狂人1人】。\n"
@@ -534,6 +537,7 @@ class Agent:
                 "村人陣営または人狼陣営として勝利を目指してください。"
                 "同じ内容を繰り返さず、新しい視点や推理を述べてください。気になる点について他の人に質問してもいいです。"
             )
+
 
         if self.role == Role.VILLAGER:
             prompt = (
@@ -600,9 +604,11 @@ class Agent:
         # 调用 DeepSeek LLM API 生成发言内容
         # OpenAI LLM API も使用可能
         # result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=128, model=model)
-        result = call_openai_llm(prompt, temperature=1.5, max_tokens=256, model=model)
+        result = call_openai_llm(prompt, temperature=0.7, max_tokens=256, model=model)
         if not result or result.strip().upper() == "SKIP":
+            self.turn += 1
             return "SKIP"
+        self.turn += 1
         return result
 
     def daily_finish(self) -> None:
@@ -666,8 +672,8 @@ class Agent:
         return new_target if new_target is not None else self.index
 
     def vote(self) -> str:
-        return self.vote_protocol()
-        # return self.vote_llmbase()
+        #return self.vote_protocol()
+        return self.vote_llmbase()
 
     def vote_llmbase(self) -> str:
         """用LLM生成投票目标和理由，并详细记录日志，返回值只返回玩家名。"""
@@ -704,7 +710,7 @@ class Agent:
             # 调用 DeepSeek LLM API 生成投票内容
             # result = call_deepseek_llm(prompt, temperature=0.7, max_tokens=128, model=model)
             result = call_openai_llm(
-                prompt, temperature=1.5, max_tokens=256, model=model
+                prompt, temperature=0.7, max_tokens=256, model=model
             )
             print(f"LLM输出: {result}")
             import re

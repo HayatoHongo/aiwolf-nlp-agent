@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from aiwolf_nlp_common.packet import Role
-
+import random
+from utils.llm_api import call_openai_llm
 from agent.agent import Agent
 import configparser
 import json
@@ -49,6 +50,7 @@ class Seer(Agent):
         self.new_target = None
         self.new_result = Species.UNC
         self.strategies = []
+        self.divine_results: dict[str, str] = {}  # 占い結果を保存
 
     def initialize(self) -> None:
         super().initialize()
@@ -93,47 +95,10 @@ class Seer(Agent):
 
     def talk(self) -> str:
         """占い師のtalkメソッド."""
-        return self.talk_protocol()
-        #return self.talk_llmbase()
+        #return self.talk_protocol()
+        return self.talk_llmbase()
+
     def talk_protocol(self) -> str:
-        # try:
-        #     day: int = self.gameInfo.day
-
-        #     # 占い結果の報告（人狼発見時は強調）
-        #     if hasattr(self.gameInfo, "divineResult") and self.gameInfo.divineResult:
-        #         target = self.gameInfo.divineResult["target"]
-        #         result = self.gameInfo.divineResult["result"]
-        #         if result == "WEREWOLF":
-        #             return f"{target}を占いました。人狼です！{target}に投票しましょう。"
-        #         else:
-        #             return f"{target}を占いました。人間です。"
-
-        #     # 基本的な挨拶とCO
-        #     if day == 0:
-        #         if self.turn == 1:
-        #             return "よろしくお願いします。"
-        #         else:
-        #             return "Over"
-        #     elif day == 1:
-        #         if self.turn == 1 and not self.has_co:
-        #             self.has_co = True
-        #             self.turn += 1
-        #             return "私は占い師です。"
-        #         elif self.turn >= 2:
-        #             vote_target = self.vote()
-        #             if vote_target and vote_target != self.index:
-        #                 self.turn += 1
-        #                 return f"今日は{vote_target}に投票します。"
-
-        #     return "Over"
-
-        # except Exception as e:
-        #     print(f"[DEBUG] SEER talk error: {e}")
-        #     return "Over"
-        #     day: int = self.gameInfo.day
-
-        # game: int = Util.game_count
-        # if self.is_alive(a)でaliveを保証している
         others_seer_co: list[str] = [
             a
             for a in self.comingout_map
@@ -156,7 +121,7 @@ class Seer(Agent):
                     return_text = self.talk_generator.generate_talk(
                         ProtocolMean(False, "CO", self.index, None, "SEER")
                     )
-                    #return_text = "私はほんとに占い師です。"
+                    # return_text = "私はほんとに占い師です。"
             # ----- 結果報告 -----
             elif self.turn == 2:
                 if self.has_co and self.my_judge_queue:
@@ -170,7 +135,7 @@ class Seer(Agent):
                                 False, "DIVINED", None, judge.target, judge.result
                             )
                         )
-                        #return_text = f"{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
+                        # return_text = f"{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
                     # 白結果：状況に応じて黒結果を報告
                     elif judge.result == Species.HUMAN:
                         self.new_result = Species.WEREWOLF
@@ -196,7 +161,7 @@ class Seer(Agent):
                                 False, "DIVINED", None, self.new_target, self.new_result
                             )
                         )
-                        #return_text = f"{self.new_target}を占いました。人狼です！{self.new_target}に投票しましょう。"
+                        # return_text = f"{self.new_target}を占いました。人狼です！{self.new_target}に投票しましょう。"
             # ----- VOTE and REQUEST -----
             elif 3 <= self.turn <= 9:
                 if self.turn % 2 == 0:
@@ -205,12 +170,12 @@ class Seer(Agent):
                         request=True,
                         request_target="ANY",
                     )
-                    #return_text = f"今日は{self.new_target}に投票しましょう。"
+                    # return_text = f"今日は{self.new_target}に投票しましょう。"
                 else:
                     return_text = self.talk_generator.generate_talk(
                         ProtocolMean(False, "VOTE", None, self.new_target)
                     )
-                    #return_text = f"今日は{self.new_target}に投票します。"
+                    # return_text = f"今日は{self.new_target}に投票します。"
             else:
                 return_text = "SKIP"
         elif day >= 2:
@@ -227,7 +192,7 @@ class Seer(Agent):
                                 False, "DIVINED", None, judge.target, judge.result
                             )
                         )
-                        #return_text = f"私はほんとに占い師で、{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
+                        # return_text = f"私はほんとに占い師で、{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
                     # 白結果：生存者3人だから、残りの1人に黒結果（結果としては等価）
                     # 注意：占い先が噛まれた場合は等価ではない→人狼っぽい方に黒結果
                     elif judge.result == Species.HUMAN:
@@ -245,7 +210,7 @@ class Seer(Agent):
                                 False, "DIVINED", None, self.new_target, self.new_result
                             )
                         )
-                        #return_text = f"私はほんとに占い師で、{self.new_target}を占いました。人狼です！(実は嘘){self.new_target}に投票しましょう。"
+                        # return_text = f"私はほんとに占い師で、{self.new_target}を占いました。人狼です！(実は嘘){self.new_target}に投票しましょう。"
                 else:
                     return_text = "SKIP"
             # 狂人が生きている場合→人狼COでPPを防ぐ
@@ -255,29 +220,29 @@ class Seer(Agent):
                 return_text = self.talk_generator.generate_talk(
                     ProtocolMean(False, "CO", self.index, None, "WEREWOLF")
                 )
-                #return_text = "私は人狼です。PP宣言します"
+                # return_text = "私は人狼です。PP宣言します"
             # ----- VOTE and REQUEST -----
             elif 2 <= self.turn <= 9:
                 if self.turn % 2 == 0:
                     return_text = self.talk_generator.generate_talk(
                         ProtocolMean(False, "VOTE", None, self.new_target)
                     )
-                    #return_text = f"今日は{self.new_target}に投票します。"
+                    # return_text = f"今日は{self.new_target}に投票します。"
                 else:
                     return_text = self.talk_generator.generate_talk(
                         ProtocolMean(False, "VOTE", None, self.new_target),
                         request=True,
                         request_target="ANY",
                     )
-                    #return_text = f"今日は{self.new_target}に投票しましょう。"
+                    # return_text = f"今日は{self.new_target}に投票しましょう。"
             else:
                 return_text = "SKIP"
         self.turn += 1
         return return_text
 
     def vote(self) -> str:
-        return self.vote_protocol()
-        #return self.vote_llmbase()
+        #return self.vote_protocol()
+        return self.vote_llmbase()
 
     def vote_protocol(self) -> str:
         # ----------  同数投票の処理 ----------
@@ -321,6 +286,11 @@ class Seer(Agent):
         return vote_target
 
     def divine(self) -> str:
+        """占い師の占いメソッド."""
+        #return self.divine_protocol()
+        return self.divine_llmbase()
+
+    def divine_protocol(self) -> str:
         # game: int = Util.game_count
         divine_candidate: str = None
         # 占い候補：占っていないエージェント
@@ -356,3 +326,60 @@ class Seer(Agent):
         print(f"占い対象：{divine_candidate}")
         divine_target = divine_candidate if divine_candidate is not None else self.index
         return divine_target
+
+    def divine(self) -> str:
+        """占いリクエストに対する応答を返す（LLM＋ルールベースフォールバック）。"""
+        alive_agents = self.get_alive_agents()
+        # まだ占っていない人を抽出
+        undivined = [
+            agent for agent in alive_agents if agent not in self.divine_results
+        ]
+        if not undivined:
+            print("未占い候補なし → ランダム選択")
+            return random.choice(alive_agents)
+
+        # 発言履歴を文字列化
+        filtered = [t for t in self.talk_history if t.text not in ("OVER", "SKIP")]
+        talk_history = "\n".join(f"{t.agent}: {t.text}" for t in filtered)
+
+        # エージェント番号マップ作成
+        agent_map = {f"Agent[{i+1:02d}]": name for i, name in enumerate(undivined)}
+        agent_list_str = "\n".join(f"{v}（{k}）" for k, v in agent_map.items())
+
+        # プロンプト組み立て
+        prompt = (
+            f"あなたは人狼ゲームの占い師役です。以下はこれまでの発言履歴です：\n"
+            f"{talk_history}\n"
+            f"まだ占っていないプレイヤーは以下の通りです：\n{agent_list_str}\n"
+            "この中から最適な占い対象を一人選び、その理由も日本語で簡潔に説明してください。\n"
+            "出力は「Agent[xx]」または名前のみでお願いします。"
+            "例: Agent[03]を占います。理由は発言が少ないからです。"
+            "例: ベンジャミンに占います。理由は発言が少ないからです。"
+        )
+
+        try:
+            # result = call_o4mini_http(user_prompt=prompt, system_prompt="256文字以内で簡潔に回答してください。")
+            model = "gpt-4.1"
+            result = call_openai_llm(
+                prompt, temperature=1.0, max_tokens=256, model=model
+            )
+            print(f"LLM出力（占い候補）: {result}")
+
+            import re
+
+            # Agent[xx]形式があれば優先
+            m = re.search(r"(Agent\[\d+\])", result)
+            if m and m.group(1) in agent_map:
+                chosen = agent_map[m.group(1)]
+                print(f"マッチ: {m.group(1)} → {chosen}")
+                return chosen
+
+            # 名前直接マッチ
+            for name in undivined:
+                if name in result:
+                    print(f"名前マッチ: {name}")
+                    return name
+
+            print("LLMから有効な占い対象が取れず")
+        except Exception as e:
+            print(f"LLM呼び出し失敗: {e}")

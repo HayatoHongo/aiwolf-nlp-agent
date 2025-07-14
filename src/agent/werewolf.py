@@ -6,7 +6,7 @@ import json
 import random
 from collections import deque
 from typing import Deque
-
+from utils.llm_api import call_openai_llm
 
 from aiwolf_nlp_common.packet import Role as PacketRole
 
@@ -186,8 +186,8 @@ class Werewolf(Agent):
 
     def talk(self) -> str:
         """人狼のtalkメソッド."""
-        return self.talk_protocol()
-        #return self.talk_llmbase()
+        #return self.talk_protocol()
+        return self.talk_llmbase()
 
     def talk_protocol(self) -> str:
         day: int = self.gameInfo.day
@@ -221,7 +221,7 @@ class Werewolf(Agent):
                     request=True,
                     request_target="ANY",
                 )
-                #return_text = "ゲーム初日初発言。私は人狼。だれかCOしてください"
+                # return_text = "ゲーム初日初発言。私は人狼。だれかCOしてください"
             # ----- CO -----
             # 1: 真占いの黒結果
             if not self.has_co and self.found_me:
@@ -230,7 +230,7 @@ class Werewolf(Agent):
                 return_text = self.talk_generator.generate_talk(
                     ProtocolMean(False, "CO", self.index, None,"SEER")
                 )
-                #return_text = "見つかってしまった。私は占い師です。"
+                # return_text = "見つかってしまった。私は占い師です。"
             # 2: 占い2COかつ狂人あり
             if not self.has_co and (others_seer_co_num >= 2 and self.alive_possessed):
                 print("占いCO：2COかつ狂人あり")
@@ -238,7 +238,7 @@ class Werewolf(Agent):
                 return_text = self.talk_generator.generate_talk(
                     ProtocolMean(False, "CO", self.index, None, "SEER")
                 )
-                #return_text = "占い2COかつ狂人あり.私は占い師です。"
+                # return_text = "占い2COかつ狂人あり.私は占い師です。"
             # 3: 3ターン目以降かつ占い1CO
             if not self.has_co and (self.turn >= 3 and others_seer_co_num == 1):
                 print("占いCO：3ターン目以降かつ占い1CO")
@@ -246,7 +246,7 @@ class Werewolf(Agent):
                 return_text = self.talk_generator.generate_talk(
                     ProtocolMean(False, "CO", self.index, None, "SEER")
                 )
-                #return_text = "占いCO：3ターン目以降かつ占い1CO.私は占い師です。"
+                # return_text = "占いCO：3ターン目以降かつ占い1CO.私は占い師です。"
             # ----- 結果報告 -----
             if self.has_co and self.my_judge_queue:
                 judge: Judge = self.my_judge_queue.popleft()
@@ -290,7 +290,7 @@ class Werewolf(Agent):
                 return_text = self.talk_generator.generate_talk(
                     ProtocolMean(False, "DIVINED", None, self.new_target, Species.HUMAN)
                 )
-                #return_text = "PP盤面でない場合、適当に白結果を出して、占いっぽく見せる"
+                # return_text = "PP盤面でない場合、適当に白結果を出して、占いっぽく見せる"
             # ----- VOTE and REQUEST -----
             if 2 <= self.turn <= 9:
                 if self.PP_flag:
@@ -306,7 +306,7 @@ class Werewolf(Agent):
                     return_text = self.talk_generator.generate_talk(
                         ProtocolMean(False, "VOTE", None, self.vote_candidate)
                     )
-                    #return_text = f"投票先は{self.vote_candidate}です。"
+                    # return_text = f"投票先は{self.vote_candidate}です。"
                 else:
                     return_text = self.talk_generator.generate_talk(
                         ProtocolMean(False, "VOTE", None, self.vote_candidate),
@@ -319,8 +319,8 @@ class Werewolf(Agent):
         return return_text
 
     def vote(self) -> str:
-        return self.vote_protocol()
-        # return self.vote_llmbase()
+        #return self.vote_protocol()
+        return self.vote_llmbase()
 
     def vote_protocol(self) -> str:
         # ----------  同数投票の処理 ----------
@@ -433,6 +433,15 @@ class Werewolf(Agent):
         return ret_agent
 
     def attack(self) -> str:
+        """人狼の襲撃メソッド."""
+        #return self.attack_protocol()
+        return self.attack_llmbase()
+
+    def attack_llmbase(self) -> str:
+        """襲撃リクエストに対する応答を返す."""
+        target = self.get_best_attack_target()
+        return target
+    def attack_protocol(self) -> str:
         self.estimate_possessed()
         self.estimate_seer()
         # alive_werewolf_cnt = len(self.get_alive(self.allies))
@@ -548,11 +557,60 @@ class Werewolf(Agent):
             self.attack_vote_candidate = (
                 attack_vote_candidates[0] if attack_vote_candidates else self.index
             )
-
-        print(f"襲撃対象:\t{self.attack_vote_candidate}")
         attack_target = (
             self.attack_vote_candidate
             if self.attack_vote_candidate is not None
             else self.index
         )
         return attack_target
+
+
+    def get_best_attack_target(self) -> str:
+        """最適な襲撃対象を選択する（LLM+ルールベースフォールバック）。"""
+        alive_agents = self.get_alive_agents()
+        # 自分以外のプレイヤーから選択
+        candidates = [agent for agent in alive_agents if agent != self.agent_name]
+        if not candidates:
+            return random.choice(alive_agents)
+
+        # 1) LLMに投げるための発言履歴文字列を作成
+        filtered = [t for t in self.talk_history if t.text not in ("OVER", "SKIP")]
+        talk_history = "\n".join(f"{t.agent}: {t.text}" for t in filtered)
+
+        # 2) エージェント番号マッピングを作成
+        agent_map = {f"Agent[{i+1:02d}]": name for i, name in enumerate(candidates)}
+        agent_list_str = "\n".join(f"{v}（{k}）" for k, v in agent_map.items())
+
+        # 3) プロンプトを組み立て
+        prompt = (
+            f"あなたは人狼ゲームの人狼役です。以下はこれまでの発言履歴です：\n"
+            f"{talk_history}\n"
+            f"現在襲撃可能なプレイヤーは以下の通りです：\n{agent_list_str}\n"
+            "この中から最適な襲撃対象を一人選び、その理由も日本語で非常に簡潔に説明してください。\n"
+            "出力は「Agent[xx]」または名前（例：ベンジャミン）のみでお願いします。"
+            "例: Agent[03]を攻撃します。理由は占い師であり危険だからです。"
+            "例: ベンジャミンに投票します。理由は彼は私が人狼であることを疑っているからです。"
+        )
+
+        try:
+            # o4-miniモデルで問い合わせ
+            # result = call_o4mini_http(user_prompt=prompt,system_prompt="256文字以内で簡潔に回答してください。")
+            model = "gpt-4.1"
+            result = call_openai_llm(prompt, temperature=1.0, max_tokens=256, model=model)
+            print(f"LLM出力: {result}")  # ← ここで結果をログ出力
+
+            # Agent[xx]形式を優先
+            import re
+
+            m = re.search(r"(Agent\[\d+\])", result)
+            if m and m.group(1) in agent_map:
+                return agent_map[m.group(1)]
+            # 名前が直接出ていればそれを
+            for name in candidates:
+                if name in result:
+                    return name
+            print("LLMから有効な襲撃対象が取れず")
+        except Exception as e:
+            print(
+                f"LLM呼び出しが失敗したか、または有効なエージェント名もしくは番号を含む回答を得ることができませんでした。: {e} "
+            )
