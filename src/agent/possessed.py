@@ -174,10 +174,10 @@ class Possessed(Agent):
             if turn == 1:
                 if not self.has_co:
                     self.has_co = True
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "CO", self.index, None, "SEER")
-                    # )
-                    return_text = "私は占い師です。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "CO", self.index, None, "SEER")
+                    )
+                    #return_text = "私は占い師です。"
             # ----- 結果報告 -----
             elif turn == 2:
                 if self.has_co and not self.has_report:
@@ -192,12 +192,12 @@ class Possessed(Agent):
                         self.new_target = self.role_predictor.chooseLeastLikely(
                             Role.WEREWOLF, alive_others
                         )
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(
-                    #         False, "DIVINED", None, self.new_target, self.new_result
-                    #     )
-                    # )
-                    return_text = f"今日の占い結果は{self.new_target}は人狼です。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(
+                            False, "DIVINED", None, self.new_target, self.new_result
+                        )
+                    )
+                    #return_text = f"今日の占い結果は{self.new_target}は人狼です。"
             elif 2 <= turn <= 9:
                 if turn % 2 == 0:
                     return_text = self.talk_generator.generate_talk(
@@ -214,11 +214,11 @@ class Possessed(Agent):
         elif day >= 2:
             if turn == 1:
                 # ----- PP -----
-                # 上のPPでreturnされているから、特に必要ない
-                # return_text = self.talk_generator.generate_talk(
-                #     ProtocolMean(False, "CO", self.index, None, "WEREWOLF")
-                # )
-                return_text = "PP宣言します。私は人狼です。"
+                #上のPPでreturnされているから、特に必要ない
+                return_text = self.talk_generator.generate_talk(
+                    ProtocolMean(False, "CO", self.index, None, "WEREWOLF")
+                )
+                #return_text = "PP宣言します。私は人狼です。"
             # ----- VOTE and REQUEST -----
             elif 2 <= turn <= 9:
                 # 候補：人狼っぽくないエージェント
@@ -226,17 +226,17 @@ class Possessed(Agent):
                     Role.WEREWOLF, alive_others
                 )
                 if turn % 2 == 0:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "VOTE", None, self.new_target),
-                    #     request=True,
-                    #     request_target="ANY",
-                    # )
-                    return_text = f"投票先は{self.new_target}です。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.new_target),
+                        request=True,
+                        request_target="ANY",
+                    )
+                    #return_text = f"投票先は{self.new_target}です。"
                 else:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "VOTE", None, self.new_target)
-                    # )
-                    return_text = f"皆さん、投票先は{self.new_target}にすべきです。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.new_target)
+                    )
+                    #return_text = f"皆さん、投票先は{self.new_target}にすべきです。"
             else:
                 return_text = "SKIP"
         else:

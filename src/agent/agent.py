@@ -405,33 +405,33 @@ class Agent:
         # ...existing code...
         if day == 1:
             if self.turn == 1:
-                # return_text = self.talk_generator.generate_talk(
-                #     ProtocolMean(False, "CO", None, None),
-                #     request=True,
-                #     request_target="ANY",
-                # )
-                return_text = "だれかCOしましょう"
+                return_text = self.talk_generator.generate_talk(
+                    ProtocolMean(False, "CO", None, None),
+                    request=True,
+                    request_target="ANY",
+                )
+                #return_text = "だれかCOしましょう"
             elif 2 <= self.turn <= 8:
                 rnd = random.randint(0, 2)
                 if rnd == 0:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(
-                    #         False, "ESTIMATE", None, self.vote_candidate, "WEREWOLF"
-                    #     )
-                    # )
-                    return_text = f"私は村人で、{self.vote_candidate}が怪しいんじゃないかな"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(
+                            False, "ESTIMATE", None, self.vote_candidate, "WEREWOLF"
+                        )
+                    )
+                    #return_text = f"私は村人で、{self.vote_candidate}が怪しいんじゃないかな"
                 elif rnd == 1:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "VOTE", None, self.vote_candidate)
-                    # )
-                    return_text = f"私は村人、投票先は{self.vote_candidate}です。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.vote_candidate)
+                    )
+                    #return_text = f"私は村人、投票先は{self.vote_candidate}です。"
                 else:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "VOTE", None, self.vote_candidate),
-                    #     request=True,
-                    #     request_target="ANY",
-                    # )
-                    return_text = f"私は村人投票先は{self.vote_candidate}です。投票をお願いします。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.vote_candidate),
+                        request=True,
+                        request_target="ANY",
+                    )
+                    #return_text = f"私は村人投票先は{self.vote_candidate}です。投票をお願いします。"
             else:
                 return_text = "Over"
         elif day >= 2:
@@ -444,10 +444,10 @@ class Agent:
                     self.gameInfo.statusMap[agent_possessed] == Status.ALIVE
                 )
                 if self.turn == 1 and alive_possessed:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "CO", self.index, None, "POSSESSED")
-                    # )
-                    return_text = "PP宣言します。狂人です。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "CO", self.index, None, "POSSESSED")
+                    )
+                    #return_text = "PP宣言します。狂人です。"
 
             if 1 <= self.turn <= 6:
                 rnd = random.randint(0, 2)

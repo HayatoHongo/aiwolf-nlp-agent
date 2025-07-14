@@ -215,38 +215,38 @@ class Werewolf(Agent):
         elif day == 1:
             # 村人と揃える
             if self.turn == 1:
-                # return_text = self.talk_generator.generate_talk(
-                #     ProtocolMean(
-                #         False, "CO", None, None, ),  # Noneが１つ余計だったことでprotcolmeanでfirst_translateの処理が入りバグっていた。
-                #     request=True,
-                #     request_target="ANY",
-                # )
-                return_text = "ゲーム初日初発言。私は人狼。だれかCOしてください"
+                return_text = self.talk_generator.generate_talk(
+                    ProtocolMean(
+                        False, "CO", None, None, ),  # Noneが１つ余計だったことでprotcolmeanでfirst_translateの処理が入りバグっていた。
+                    request=True,
+                    request_target="ANY",
+                )
+                #return_text = "ゲーム初日初発言。私は人狼。だれかCOしてください"
             # ----- CO -----
             # 1: 真占いの黒結果
             if not self.has_co and self.found_me:
                 print("占いCO：見つかった")
                 self.has_co = True
-                # return_text = self.talk_generator.generate_talk(
-                #     ProtocolMean(False, "CO", self.index, None,"SEER")
-                # )
-                return_text = "見つかってしまった。私は占い師です。"
+                return_text = self.talk_generator.generate_talk(
+                    ProtocolMean(False, "CO", self.index, None,"SEER")
+                )
+                #return_text = "見つかってしまった。私は占い師です。"
             # 2: 占い2COかつ狂人あり
             if not self.has_co and (others_seer_co_num >= 2 and self.alive_possessed):
                 print("占いCO：2COかつ狂人あり")
                 self.has_co = True
-                # return_text = self.talk_generator.generate_talk(
-                #     ProtocolMean(False, "CO", self.index, None, "SEER")
-                # )
-                return_text = "占い2COかつ狂人あり.私は占い師です。"
+                return_text = self.talk_generator.generate_talk(
+                    ProtocolMean(False, "CO", self.index, None, "SEER")
+                )
+                #return_text = "占い2COかつ狂人あり.私は占い師です。"
             # 3: 3ターン目以降かつ占い1CO
             if not self.has_co and (self.turn >= 3 and others_seer_co_num == 1):
                 print("占いCO：3ターン目以降かつ占い1CO")
                 self.has_co = True
-                # return_text = self.talk_generator.generate_talk(
-                #     ProtocolMean(False, "CO", self.index, None, "SEER")
-                # )
-                return_text = "占いCO：3ターン目以降かつ占い1CO.私は占い師です。"
+                return_text = self.talk_generator.generate_talk(
+                    ProtocolMean(False, "CO", self.index, None, "SEER")
+                )
+                #return_text = "占いCO：3ターン目以降かつ占い1CO.私は占い師です。"
             # ----- 結果報告 -----
             if self.has_co and self.my_judge_queue:
                 judge: Judge = self.my_judge_queue.popleft()
@@ -287,10 +287,10 @@ class Werewolf(Agent):
                     Role.POSSESSED, alive_others
                 )
                 self.new_result = Species.HUMAN
-                # return_text = self.talk_generator.generate_talk(
-                #     ProtocolMean(False, "DIVINED", None, self.new_target, Species.HUMAN)
-                # )
-                return_text = "PP盤面でない場合、適当に白結果を出して、占いっぽく見せる"
+                return_text = self.talk_generator.generate_talk(
+                    ProtocolMean(False, "DIVINED", None, self.new_target, Species.HUMAN)
+                )
+                #return_text = "PP盤面でない場合、適当に白結果を出して、占いっぽく見せる"
             # ----- VOTE and REQUEST -----
             if 2 <= self.turn <= 9:
                 if self.PP_flag:
@@ -303,10 +303,10 @@ class Werewolf(Agent):
                         ],
                     )
                 if self.turn % 2 == 0:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "VOTE", None, self.vote_candidate)
-                    # )
-                    return_text = f"投票先は{self.vote_candidate}です。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.vote_candidate)
+                    )
+                    #return_text = f"投票先は{self.vote_candidate}です。"
                 else:
                     return_text = self.talk_generator.generate_talk(
                         ProtocolMean(False, "VOTE", None, self.vote_candidate),

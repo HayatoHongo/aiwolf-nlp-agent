@@ -153,10 +153,10 @@ class Seer(Agent):
             if self.turn == 1:
                 if not self.has_co:
                     self.has_co = True
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "CO", self.index, None, "SEER")
-                    # )
-                    return_text = "私はほんとに占い師です。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "CO", self.index, None, "SEER")
+                    )
+                    #return_text = "私はほんとに占い師です。"
             # ----- 結果報告 -----
             elif self.turn == 2:
                 if self.has_co and self.my_judge_queue:
@@ -165,12 +165,12 @@ class Seer(Agent):
                     self.new_result = judge.result
                     # 黒結果：そのまま報告
                     if judge.result == Species.WEREWOLF:
-                        # return_text = self.talk_generator.generate_talk(
-                        #     ProtocolMean(
-                        #         False, "DIVINED", None, judge.target, judge.result
-                        #     )
-                        # )
-                        return_text = f"{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
+                        return_text = self.talk_generator.generate_talk(
+                            ProtocolMean(
+                                False, "DIVINED", None, judge.target, judge.result
+                            )
+                        )
+                        #return_text = f"{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
                     # 白結果：状況に応じて黒結果を報告
                     elif judge.result == Species.HUMAN:
                         self.new_result = Species.WEREWOLF
@@ -191,26 +191,26 @@ class Seer(Agent):
                         if self.new_target is None:
                             self.new_target = judge.target
                             self.new_result = judge.result
-                        # return_text = self.talk_generator.generate_talk(
-                        #     ProtocolMean(
-                        #         False, "DIVINED", None, self.new_target, self.new_result
-                        #     )
-                        # )
-                        return_text = f"{self.new_target}を占いました。人狼です！{self.new_target}に投票しましょう。"
+                        return_text = self.talk_generator.generate_talk(
+                            ProtocolMean(
+                                False, "DIVINED", None, self.new_target, self.new_result
+                            )
+                        )
+                        #return_text = f"{self.new_target}を占いました。人狼です！{self.new_target}に投票しましょう。"
             # ----- VOTE and REQUEST -----
             elif 3 <= self.turn <= 9:
                 if self.turn % 2 == 0:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "VOTE", None, self.new_target),
-                    #     request=True,
-                    #     request_target="ANY",
-                    # )
-                    return_text = f"今日は{self.new_target}に投票しましょう。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.new_target),
+                        request=True,
+                        request_target="ANY",
+                    )
+                    #return_text = f"今日は{self.new_target}に投票しましょう。"
                 else:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "VOTE", None, self.new_target)
-                    # )
-                    return_text = f"今日は{self.new_target}に投票します。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.new_target)
+                    )
+                    #return_text = f"今日は{self.new_target}に投票します。"
             else:
                 return_text = "SKIP"
         elif day >= 2:
@@ -222,12 +222,12 @@ class Seer(Agent):
                     self.new_result = judge.result
                     # 黒結果：そのまま報告
                     if judge.result == Species.WEREWOLF:
-                        # return_text = self.talk_generator.generate_talk(
-                        #     ProtocolMean(
-                        #         False, "DIVINED", None, judge.target, judge.result
-                        #     )
-                        # )
-                        return_text = f"私はほんとに占い師で、{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
+                        return_text = self.talk_generator.generate_talk(
+                            ProtocolMean(
+                                False, "DIVINED", None, judge.target, judge.result
+                            )
+                        )
+                        #return_text = f"私はほんとに占い師で、{judge.target}を占いました。人狼です！{judge.target}に投票しましょう。"
                     # 白結果：生存者3人だから、残りの1人に黒結果（結果としては等価）
                     # 注意：占い先が噛まれた場合は等価ではない→人狼っぽい方に黒結果
                     elif judge.result == Species.HUMAN:
@@ -240,36 +240,36 @@ class Seer(Agent):
                             ],
                         )
                         self.new_result = Species.WEREWOLF
-                        # return_text = self.talk_generator.generate_talk(
-                        #     ProtocolMean(
-                        #         False, "DIVINED", None, self.new_target, self.new_result
-                        #     )
-                        # )
-                        return_text = f"私はほんとに占い師で、{self.new_target}を占いました。人狼です！(実は嘘){self.new_target}に投票しましょう。"
+                        return_text = self.talk_generator.generate_talk(
+                            ProtocolMean(
+                                False, "DIVINED", None, self.new_target, self.new_result
+                            )
+                        )
+                        #return_text = f"私はほんとに占い師で、{self.new_target}を占いました。人狼です！(実は嘘){self.new_target}に投票しましょう。"
                 else:
                     return_text = "SKIP"
             # 狂人が生きている場合→人狼COでPPを防ぐ
             elif self.turn == 2 and self.role_predictor.estimate_alive_possessed(
                 threshold=0.5
             ):
-                # return_text = self.talk_generator.generate_talk(
-                #     ProtocolMean(False, "CO", self.index, None, "WEREWOLF")
-                # )
-                return_text = "私は人狼です。PP宣言します"
+                return_text = self.talk_generator.generate_talk(
+                    ProtocolMean(False, "CO", self.index, None, "WEREWOLF")
+                )
+                #return_text = "私は人狼です。PP宣言します"
             # ----- VOTE and REQUEST -----
             elif 2 <= self.turn <= 9:
                 if self.turn % 2 == 0:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "VOTE", None, self.new_target)
-                    # )
-                    return_text = f"今日は{self.new_target}に投票します。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.new_target)
+                    )
+                    #return_text = f"今日は{self.new_target}に投票します。"
                 else:
-                    # return_text = self.talk_generator.generate_talk(
-                    #     ProtocolMean(False, "VOTE", None, self.new_target),
-                    #     request=True,
-                    #     request_target="ANY",
-                    # )
-                    return_text = f"今日は{self.new_target}に投票しましょう。"
+                    return_text = self.talk_generator.generate_talk(
+                        ProtocolMean(False, "VOTE", None, self.new_target),
+                        request=True,
+                        request_target="ANY",
+                    )
+                    #return_text = f"今日は{self.new_target}に投票しましょう。"
             else:
                 return_text = "SKIP"
         self.turn += 1
