@@ -25,4 +25,4 @@ def run_and_record_result(times=100, result_file="results.txt"):
             print(output)
             print("勝利陣営判明せず")
 
-run_and_record_result(times=1)
+run_and_record_result(times=100)
