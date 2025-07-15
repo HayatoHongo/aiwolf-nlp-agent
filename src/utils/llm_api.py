@@ -62,7 +62,7 @@ openai.api_key = OPENAI_API_KEY
 
 def call_openai_llm(
     prompt: str,
-    model: str = "gpt-4o-mini",
+    model: str = "gpt-3.5-turbo",
     temperature: float = 0.7,
     max_tokens: int = 128,
     system_prompt: str = None,

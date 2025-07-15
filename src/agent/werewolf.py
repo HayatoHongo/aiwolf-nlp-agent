@@ -186,8 +186,8 @@ class Werewolf(Agent):
 
     def talk(self) -> str:
         """人狼のtalkメソッド."""
-        #return self.talk_protocol()
-        return self.talk_llmbase()
+        return self.talk_protocol()
+        #return self.talk_llmbase()
 
     def talk_protocol(self) -> str:
         day: int = self.gameInfo.day
@@ -319,8 +319,8 @@ class Werewolf(Agent):
         return return_text
 
     def vote(self) -> str:
-        #return self.vote_protocol()
-        return self.vote_llmbase()
+        return self.vote_protocol()
+        #return self.vote_llmbase()
 
     def vote_protocol(self) -> str:
         # ----------  同数投票の処理 ----------
@@ -434,8 +434,8 @@ class Werewolf(Agent):
 
     def attack(self) -> str:
         """人狼の襲撃メソッド."""
-        #return self.attack_protocol()
-        return self.attack_llmbase()
+        return self.attack_protocol()
+        #return self.attack_llmbase()
 
     def attack_llmbase(self) -> str:
         """襲撃リクエストに対する応答を返す."""
@@ -483,7 +483,6 @@ class Werewolf(Agent):
             traceback.print_exc()
             self.threat = []
         # print("脅威:\t", self.self.threat)
-        # print("alive_comingout_map:\t", self.alive_comingout_map_str)
         # ---------- 5人村 ----------
         # 注意：5人村ではwhisperが呼ばれないので、attack関数で襲撃対象を決める
         # 襲撃候補：占いCOしていないエージェント
@@ -595,7 +594,7 @@ class Werewolf(Agent):
         try:
             # o4-miniモデルで問い合わせ
             # result = call_o4mini_http(user_prompt=prompt,system_prompt="256文字以内で簡潔に回答してください。")
-            model = "gpt-4.1"
+            model = "gpt-3.5-turbo"  # "gpt-4o-mini"
             result = call_openai_llm(prompt, temperature=1.0, max_tokens=256, model=model)
             print(f"LLM出力: {result}")  # ← ここで結果をログ出力
 

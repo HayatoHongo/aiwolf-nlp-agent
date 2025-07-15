@@ -128,7 +128,7 @@ class Agent:
         self.role_predictor = RolePredictor(
             self.gameInfo, self.gameSetting, self.index, self.score_matrix
         )
-        self.talk_generator = TalkGenerator(self.index)
+        self.talk_generator = TalkGenerator(self.index, self.info.profile)
         self.vote_list = []  # 最新の投票リストを保持
 
     @staticmethod
@@ -191,7 +191,7 @@ class Agent:
             self.day = packet.day
         elif hasattr(packet, "info") and hasattr(packet.info, "day"):
             self.day = packet.info.day
-        # self.agent_logger.logger.debug(packet)
+        self.agent_logger.logger.debug(packet)
 
     def convert_json_for_legacy(self, json_str: str) -> dict:
         """新しいJSON形式を旧エージェント用に変換する."""

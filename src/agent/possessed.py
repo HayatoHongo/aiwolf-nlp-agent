@@ -140,8 +140,8 @@ class Possessed(Agent):
 
     def talk(self) -> str:
         """狂人のtalkメソッド."""
-        #return self.talk_protocol()
-        return self.talk_llmbase()
+        return self.talk_protocol()
+        #return self.talk_llmbase()
 
     def talk_protocol(self) -> str:
         day: int = self.gameInfo.day
@@ -245,8 +245,8 @@ class Possessed(Agent):
         return return_text
 
     def vote(self) -> str:
-        #return self.vote_protocol()
-        return self.vote_llmbase()
+        return self.vote_protocol()
+        return #self.vote_llmbase()
 
     def vote_protocol(self) -> str:
         self.estimate_werewolf()

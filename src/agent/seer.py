@@ -322,7 +322,6 @@ class Seer(Agent):
         # ---------- 5人村15人村共通 ----------
         # 初日：勝率が高いエージェント（情報がほぼないため）
         # 白結果：味方になる、黒結果：早めに処理できる
-        # Util.debug_print("alive_comingout_map:\t", self.alive_comingout_map_str)
         print(f"占い対象：{divine_candidate}")
         divine_target = divine_candidate if divine_candidate is not None else self.index
         return divine_target
@@ -359,7 +358,7 @@ class Seer(Agent):
 
         try:
             # result = call_o4mini_http(user_prompt=prompt, system_prompt="256文字以内で簡潔に回答してください。")
-            model = "gpt-4.1"
+            model = "gpt-3.5-turbo"  # "gpt-4o-mini"
             result = call_openai_llm(
                 prompt, temperature=1.0, max_tokens=256, model=model
             )
