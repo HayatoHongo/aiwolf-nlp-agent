@@ -387,8 +387,8 @@ class Agent:
         #     return self.talk_llmbase()
         #     #return self.talk_protocol()
         # else:
-        return self.talk_llmbase()
-        #return self.talk_protocol()
+        #return self.talk_llmbase()
+        return self.talk_protocol()
 
     def talk_protocol(self) -> str:
         day: int = self.gameInfo.day
@@ -672,8 +672,8 @@ class Agent:
         return new_target if new_target is not None else self.index
 
     def vote(self) -> str:
-        #return self.vote_protocol()
-        return self.vote_llmbase()
+        return self.vote_protocol()
+        #return self.vote_llmbase()
 
     def vote_llmbase(self) -> str:
         """用LLM生成投票目标和理由，并详细记录日志，返回值只返回玩家名。"""

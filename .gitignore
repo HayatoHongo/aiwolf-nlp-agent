@@ -45,7 +45,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+
 develop-eggs/
 dist/
 downloads/
@@ -210,7 +210,6 @@ pyrightconfig.json
 # http://iamzed.com/2009/05/07/a-primer-on-virtualenv/
 [Bb]in
 [Ii]nclude
-[Ll]ib
 [Ll]ib64
 [Ll]ocal
 [Ss]cripts
@@ -238,7 +237,7 @@ pip-selfcheck.json
 .ionide
 
 ### Windows ###
-# Windows thumbnail cache files
+# Windows thumbnail cache filesf
 Thumbs.db
 Thumbs.db:encryptable
 ehthumbs.db

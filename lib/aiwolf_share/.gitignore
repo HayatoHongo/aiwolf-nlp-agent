@@ -1,0 +1,9 @@
+.DS_Store
+*.log
+
+zikken.ipynb
+
+# python
+__pycache__/
+
+report/

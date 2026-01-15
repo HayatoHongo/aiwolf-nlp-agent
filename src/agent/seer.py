@@ -95,8 +95,8 @@ class Seer(Agent):
 
     def talk(self) -> str:
         """占い師のtalkメソッド."""
-        #return self.talk_protocol()
-        return self.talk_llmbase()
+        return self.talk_protocol()
+        #return self.talk_llmbase()
 
     def talk_protocol(self) -> str:
         others_seer_co: list[str] = [
@@ -241,8 +241,8 @@ class Seer(Agent):
         return return_text
 
     def vote(self) -> str:
-        #return self.vote_protocol()
-        return self.vote_llmbase()
+        return self.vote_protocol()
+        #return self.vote_llmbase()
 
     def vote_protocol(self) -> str:
         # ----------  同数投票の処理 ----------
@@ -287,8 +287,8 @@ class Seer(Agent):
 
     def divine(self) -> str:
         """占い師の占いメソッド."""
-        #return self.divine_protocol()
-        return self.divine_llmbase()
+        return self.divine_protocol()
+        #return self.divine_llmbase()
 
     def divine_protocol(self) -> str:
         # game: int = Util.game_count
